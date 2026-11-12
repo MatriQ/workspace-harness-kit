@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "kind": "local-harness-documentation-validation",
+  "observed_date": "2026-11-11",
+  "synthetic_sources_only": true,
+  "actual_agent_runs": {
+    "authors": 3,
+    "independent_consumers": 3,
+    "total": 6,
+    "comparative_model_benchmark": false,
+    "model_tokens": null,
+    "cost": null
+  },
+  "runtimes": {
+    "independent_consumers_node": "26.5.1",
+    "final_application_node": "24.12.0",
+    "python": "3.14.5",
+    "git": "2.53.0"
+  },
+  "cases": [
+    {
+      "case": "empty",
+      "documents": 4,
+      "topics": 4,
+      "coverage": "covered",
+      "harness": "passed",
+      "staticPending": 11,
+      "workspaceErrors": 0,
+      "workspaceWarnings": 0,
+      "artifact_receipts": [
+        {
+          "local_record": "empty-final/artifacts/node24-execution.json",
+          "sha256": "e87203dd73c39fd221b9d303d628f3a4e8b8e98369e76ee28faf304b695da950"
+        },
+        {
+          "local_record": "empty-final/artifacts/refresh-execution.json",
+          "sha256": "f873b7940f7b97f56cbe551ecd76350f14a964d995e3da94082b38c200e23c6b"
+        },
+        {
+          "local_record": "empty-final/artifacts/final-checks.json",
+          "sha256": "877502ab341fb39bc91e4bef931128d2c65c838c7ba2cc974042334d3284097a"
+        }
+      ],
+      "application_execution": "passed",
+      "source_review": "completed for this fixture",
+      "native_activation": "not run",
+      "hosted_ci": "not run"
+    },
+    {
+      "case": "single",
+      "documents": 4,
+      "topics": 4,
+      "coverage": "covered",
+      "harness": "passed",
+      "staticPending": 3,
+      "workspaceErrors": 0,
+      "workspaceWarnings": 0,
+      "artifact_receipts": [
+        {
+          "local_record": "single-final/artifacts/consumer-execution.json",
+          "sha256": "e6f494600f495ddcbaf349ce03891feafd64387fb8ad16fca27f8163927cdf4c"
+        },
+        {
+          "local_record": "single-final/artifacts/node24-validation.json",
+          "sha256": "f71a5d58916dbf5902a1275bad57ce6ad7839ba390c250102d6e990ec43dee7a"
+        },
+        {
+          "local_record": "single-final/artifacts/final-checks.json",
+          "sha256": "2e4ede5de46e06c3a954e13db943798c1b42efcfc3c9f37172cf1c6e31535a92"
+        }
+      ],
+      "application_execution": "passed",
+      "source_review": "completed for this fixture",
+      "native_activation": "not run",
+      "hosted_ci": "not run"
+    },
+    {
+      "case": "multi",
+      "documents": 8,
+      "topics": 7,
+      "coverage": "covered",
+      "harness": "passed",
+      "staticPending": 8,
+      "workspaceErrors": 0,
+      "workspaceWarnings": 0,
+      "artifact_receipts": [
+        {
+          "local_record": "multi-final/artifacts/final-execution.json",
+          "sha256": "77dd386dd0b237968b5859960c619746687bf55985580cb9e2ff5d8f50236fed"
+        },
+        {
+          "local_record": "multi-final/artifacts/consumer-manual.json",
+          "sha256": "a9b12355c7824216f5e31e18ae0774d2e2252b765a16d4e843bf48f2e484bdda"
+        },
+        {
+          "local_record": "multi-final/artifacts/final-checks.json",
+          "sha256": "b98bb82c7fda48fe95a60752a153e51b2c3a256400dbca7de8d3dd91350b7a81"
+        }
+      ],
+      "application_execution": "passed",
+      "source_review": "completed for this fixture",
+      "native_activation": "not run",
+      "hosted_ci": "not run"
+    }
+  ],
+  "multi_scenario_exits": {
+    "expected": 0,
+    "stale": 1,
+    "skipped": 2,
+    "business-failed": 1
+  },
+  "checks": {
+    "npm_test": {
+      "status": "passed",
+      "tests": 128
+    },
+    "check_types": "passed",
+    "check_bundles": "passed",
+    "check_evals": {
+      "status": "passed",
+      "fixtures": 12,
+      "agent_runs": 0
+    },
+    "check_examples": {
+      "status": "passed",
+      "repositories": 5,
+      "installed_skills": 5,
+      "generated_files": 31,
+      "hook_cases": 4,
+      "doctor_application_smoke": "passed",
+      "doctor_overall": "pending"
+    },
+    "check_package": "passed",
+    "quick_validate": {
+      "status": "passed",
+      "skills": 5
+    }
+  },
+  "limitations": [
+    "Coverage does not attest prose accuracy.",
+    "Quoted/dynamic commands remain statically pending even when an independent execution record exists.",
+    "Automatic native host activation, native hooks, hosted CI, real cloud targets and code rollback were not exercised."
+  ],
+  "evidence_policy": "Raw records, checkout paths and diagnostics remain local. Relative record identifiers and SHA-256 values identify retained evidence without publishing its contents."
+}

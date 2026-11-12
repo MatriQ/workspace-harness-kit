@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "release": "greeting-local-1",
+  "target": {"environment": "local-rehearsal", "identity": "greeting"},
+  "artifacts": [{"component": "api", "artifact": {"kind": "package_version", "value": "1.0.0"}}],
+  "max_age_seconds": 3600,
+  "checks": [
+    {"id": "artifact-available", "area": "artifact", "criterion": "The exact selected fixture artifact is available and its identity was checked"},
+    {"id": "rollback-rehearsed", "area": "rollback", "criterion": "The local scenario can restore the previous fixture version and stop its own processes"}
+  ],
+  "not_applicable": {
+    "migration": "This synthetic rehearsal has no persistent schema or data migration.",
+    "monitoring": "This local fixture has no hosted traffic or alert routing; application smoke is evaluated after startup.",
+    "review": "This offline fixture does not model an organizational publication review. Actual projects retain their existing controls."
+  }
+}

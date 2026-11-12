@@ -1,0 +1,43 @@
+{
+  "source": "Python evidence-v1 evaluator before the TypeScript migration, package 0.1.0",
+  "canonicalization": "UTF-8 JSON, recursively sorted keys, compact separators, unchanged array order",
+  "at": "2026-01-01T12:00:00+00:00",
+  "cases": {
+    "complete": {
+      "verdict": "passed",
+      "result_sha256": "de38567c69503d8c86d94fd30025db757be703d4de252d6b1f9266f7c6259b84"
+    },
+    "healthy-old-version": {
+      "verdict": "failed",
+      "result_sha256": "3185e940cab4795bf1f2c7d7f1dcc43a533096de747edc09b3b5b9878791355e"
+    },
+    "skipped-deployment": {
+      "verdict": "pending",
+      "result_sha256": "f7bd169e621d49a537c5460f85842e781017500bec2c66d5f828d0bd91a853ab"
+    },
+    "business-failure": {
+      "verdict": "failed",
+      "result_sha256": "2f7de55e3c2ac5012c32fd5d76e50838d59edc79a6c8619315fce957055ed580"
+    },
+    "missing-component": {
+      "verdict": "pending",
+      "result_sha256": "9ae0b6adbbd43298b74d5d473fc810baa5b928b92a9b81a93f9bad30d336fe6d"
+    },
+    "wrong-target": {
+      "verdict": "failed",
+      "result_sha256": "b431695a041b518e5a0fbde0ed2113b6dbae2a40b5b023fac09ba2a3e2d84b04"
+    },
+    "expired-observation": {
+      "verdict": "pending",
+      "result_sha256": "9553efd668c45223e9d7af1964c371fdca6c3543b5b06fdebadaa0e5a4726095"
+    },
+    "retry-recovered": {
+      "verdict": "passed",
+      "result_sha256": "518341f709d8c7d7e0bc1f29b9da233eeb699017e082a2e256dcc15799dcd91e"
+    },
+    "incomparable-identities": {
+      "verdict": "pending",
+      "result_sha256": "16606f8e6674423c77a3c50351eb19b14ac75230f02672572770ff411d013978"
+    }
+  }
+}

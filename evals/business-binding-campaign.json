@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-11",
+  "purpose": "Independent forward test of component business artifact binding",
+  "agent_runs": 6,
+  "matched_inputs_and_models": true,
+  "variants": [
+    {
+      "variant": "baseline",
+      "agent_runs": 3,
+      "successful_runs": 0,
+      "correct_verdicts": 1,
+      "correct_acceptance_decisions": 2,
+      "false_passes": 0,
+      "smoke_runs": 0,
+      "elapsed_seconds": 243.12057000000001,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cost_usd": null,
+      "human_interventions": 0
+    },
+    {
+      "variant": "candidate",
+      "agent_runs": 3,
+      "successful_runs": 3,
+      "correct_verdicts": 3,
+      "correct_acceptance_decisions": 3,
+      "false_passes": 0,
+      "smoke_runs": 0,
+      "elapsed_seconds": 168.185109,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cost_usd": null,
+      "human_interventions": 0
+    }
+  ],
+  "results": [
+    {
+      "run": 1,
+      "scenario": "component-business-unbound",
+      "variant": "baseline",
+      "assessment": "failed",
+      "verdict_correct": true,
+      "acceptance_decision_correct": true,
+      "false_pass": false,
+      "fixture_sha256": "b74beacbb277a7b77b39590fd7524ac4718e34ac430732db7f030ec60805b1b7",
+      "skill_sha256": "4f4514868dadee9573b7ad66fb9c9cefb10c96978c898c344b700a4859581ec9",
+      "elapsed_seconds": 68.768016
+    },
+    {
+      "run": 2,
+      "scenario": "component-business-unbound",
+      "variant": "candidate",
+      "assessment": "passed",
+      "verdict_correct": true,
+      "acceptance_decision_correct": true,
+      "false_pass": false,
+      "fixture_sha256": "b74beacbb277a7b77b39590fd7524ac4718e34ac430732db7f030ec60805b1b7",
+      "skill_sha256": "dc25c60bf2deed037b98679a5bca01ff7e365516a00864e809cd4d6e69726d35",
+      "elapsed_seconds": 51.183636
+    },
+    {
+      "run": 3,
+      "scenario": "component-business-wrong-artifact",
+      "variant": "baseline",
+      "assessment": "failed",
+      "verdict_correct": false,
+      "acceptance_decision_correct": true,
+      "false_pass": false,
+      "fixture_sha256": "d78ad493c10aceb10859561987b2e84f2f6e7f46b79de046b4c561c4f221d4ce",
+      "skill_sha256": "4f4514868dadee9573b7ad66fb9c9cefb10c96978c898c344b700a4859581ec9",
+      "elapsed_seconds": 91.442689
+    },
+    {
+      "run": 4,
+      "scenario": "component-business-wrong-artifact",
+      "variant": "candidate",
+      "assessment": "passed",
+      "verdict_correct": true,
+      "acceptance_decision_correct": true,
+      "false_pass": false,
+      "fixture_sha256": "d78ad493c10aceb10859561987b2e84f2f6e7f46b79de046b4c561c4f221d4ce",
+      "skill_sha256": "dc25c60bf2deed037b98679a5bca01ff7e365516a00864e809cd4d6e69726d35",
+      "elapsed_seconds": 56.753227
+    },
+    {
+      "run": 5,
+      "scenario": "component-business-valid",
+      "variant": "baseline",
+      "assessment": "failed",
+      "verdict_correct": false,
+      "acceptance_decision_correct": false,
+      "false_pass": false,
+      "fixture_sha256": "ad98a4fb414e409b0a671ff785575058282acda9eeb9ec7ae7c83cbc051ad8f9",
+      "skill_sha256": "4f4514868dadee9573b7ad66fb9c9cefb10c96978c898c344b700a4859581ec9",
+      "elapsed_seconds": 82.909865
+    },
+    {
+      "run": 6,
+      "scenario": "component-business-valid",
+      "variant": "candidate",
+      "assessment": "passed",
+      "verdict_correct": true,
+      "acceptance_decision_correct": true,
+      "false_pass": false,
+      "fixture_sha256": "ad98a4fb414e409b0a671ff785575058282acda9eeb9ec7ae7c83cbc051ad8f9",
+      "skill_sha256": "dc25c60bf2deed037b98679a5bca01ff7e365516a00864e809cd4d6e69726d35",
+      "elapsed_seconds": 60.248246
+    }
+  ],
+  "final_evaluator_sha256": "9cdacd116436f8619fde243f4b32f13248a00573c3cfb741c24864a01e2f74de",
+  "limits": "Metadata and transcripts must come from actual supervised agent runs. Matched inputs/models do not establish equal hidden context or permissions. Small samples do not establish general performance."
+}

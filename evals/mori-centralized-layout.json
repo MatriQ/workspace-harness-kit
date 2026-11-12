@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "exercise": "mori-centralized-layout",
+  "layout": "centralized",
+  "canonical_entrypoint": "AGENTS.md",
+  "entrypoint_aliases": {
+    "CLAUDE.md": "AGENTS.md"
+  },
+  "generated_files": 27,
+  "reviewed_files": 23,
+  "configuration": {
+    "layout": "centralized",
+    "discovery": "entrypoint-routed",
+    "kind": "repository-harness",
+    "targets": [
+      {
+        "target": "codex",
+        "entrypoint": "AGENTS.md"
+      },
+      {
+        "target": "claude-code",
+        "entrypoint": "CLAUDE.md"
+      }
+    ],
+    "parts": {
+      "documents": [
+        ".harness/docs/index.md",
+        ".harness/docs/architecture.md",
+        ".harness/docs/client-platforms.md",
+        ".harness/docs/toolchain.md",
+        ".harness/docs/development.md",
+        ".harness/docs/validation.md",
+        ".harness/docs/tasks.md",
+        ".harness/docs/engineering.md",
+        ".harness/docs/agent-workflows.md"
+      ],
+      "skills": [
+        ".harness/skills/mori-guide/SKILL.md",
+        ".harness/skills/mori-change/SKILL.md",
+        ".harness/skills/mori-test/SKILL.md",
+        ".harness/skills/mori-local-setup/SKILL.md"
+      ],
+      "commands": [
+        ".harness/commands/mori-verify.md",
+        ".harness/commands/mori-resume.md",
+        ".harness/commands/mori-local-smoke.md"
+      ],
+      "agents": [
+        ".harness/agents/mori-code-reader.md",
+        ".harness/agents/mori-test-planner.md"
+      ],
+      "rules": [
+        ".harness/rules/mori-engineering-boundaries.md",
+        ".harness/rules/mori-validation-evidence.md"
+      ],
+      "settings": [],
+      "hooks": [],
+      "ci": []
+    }
+  },
+  "checks": {
+    "artifacts": "passed",
+    "workspace_errors": [],
+    "workspace_warnings": [],
+    "detached_checker": "passed",
+    "repeat_preview": {
+      "unchanged": 27
+    },
+    "kit_tests": {
+      "passed": 134,
+      "failed": 0
+    },
+    "kit_bundles": "passed",
+    "kit_evals": "passed",
+    "kit_examples": "passed",
+    "mori_web_tests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "mori_commands": [
+      {
+        "name": "verify",
+        "exit_code": 1,
+        "started_at": "2026-11-12T03:41:29.642366+00:00",
+        "finished_at": "2026-11-12T03:41:31.611566+00:00"
+      },
+      {
+        "name": "verify-web",
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:43:11.488876+00:00",
+        "finished_at": "2026-11-12T03:43:13.375148+00:00"
+      },
+      {
+        "name": "init-resource",
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:43:13.375494+00:00",
+        "finished_at": "2026-11-12T03:43:13.605061+00:00"
+      },
+      {
+        "name": "smoke-resource",
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:43:13.605324+00:00",
+        "finished_at": "2026-11-12T03:43:14.969652+00:00"
+      }
+    ],
+    "relocated_smoke_script": {
+      "status": "passed",
+      "checks": 13,
+      "binary_sha256": "90fd382c9d6c930987a8fcc18bdce5208b37b2bf0b1d1862ea4b1cb3254cef34",
+      "cleanup": {
+        "process_stopped": true,
+        "temporary_home_removed": true
+      },
+      "scope": "Existing local candidate used to validate script relocation; current application source was not rebuilt in this exercise."
+    },
+    "doctor": "failed"
+  },
+  "preservation": {
+    "canonical_entrypoint": "AGENTS.md",
+    "entrypoint_aliases": {
+      "CLAUDE.md": "AGENTS.md"
+    },
+    "removed_old_paths": [
+      ".codex",
+      ".claude",
+      ".agents",
+      "skills/mori-engineering",
+      "HARNESS.md",
+      "harness-init.sh",
+      "harness-tasks.json",
+      "harness-progress.txt",
+      "harness-tasks.json.bak",
+      ".harness-active",
+      ".harness-lock"
+    ],
+    "historical_task_ids_preserved": 89,
+    "historical_task_objects_unchanged": 89,
+    "concurrently_updated_task_ids": [],
+    "progress_prefix_preserved": true,
+    "task_status": "completed",
+    "head_unchanged": true,
+    "local_state_ignored": true,
+    "scoped_diff_check": "passed"
+  },
+  "concurrent_application_changes": [
+    "apps/admin/public/cloud-admin.js",
+    "apps/macos/Sources/MoriApp/ModelsView.swift",
+    "apps/macos/Sources/MoriApp/TasksView.swift",
+    "apps/macos/Sources/MoriApp/WorkspaceModel.swift",
+    "apps/web/public/app.js",
+    "apps/web/public/index.html",
+    "apps/web/public/model-settings.js",
+    "packages/native/Sources/MoriCore/API.swift",
+    "packages/native/Sources/MoriCore/HTTPServer.swift",
+    "packages/native/Sources/MoriCore/InstantWorkers.swift",
+    "packages/native/Sources/MoriCore/Worker.swift",
+    "packages/native/Tests/MoriCoreTests/BillingTests.swift",
+    "packages/native/Tests/MoriCoreTests/ComputerRoutingTests.swift",
+    "packages/native/Tests/MoriCoreTests/LocalSkillPackageTests.swift"
+  ],
+  "limits": [
+    "Full quick verification failed on formatting in application Swift files being changed outside this layout task; those files were not modified by this task.",
+    "Native host entry-point loading is not attested. Centralized procedures do not register native Skills, slash commands or agents.",
+    "No fresh native source acceptance is claimed for the relocated-script smoke."
+  ],
+  "evidence": [
+    {
+      "reference": "private-local:generation-plan.json",
+      "sha256": "ba20a8c49cf24c04eab18a58f381aa6dcc982ed60be35e8f917a23b27e14faa1"
+    },
+    {
+      "reference": "private-local:generation-apply.json",
+      "sha256": "a23a36ea00ba05c7132597c8356ecba70ad85cf2c520731ffd1b815353c92887"
+    },
+    {
+      "reference": "private-local:workspace-check.json",
+      "sha256": "8051c37ce6b2868bffba02693e43e5cd1da2ed86c6991e440872d3432e3a5208"
+    },
+    {
+      "reference": "private-local:final-artifact-check.json",
+      "sha256": "ac87eeccfe1cae21140cbd01519a1b13fd7e93b1652da6072f8cb1a5ff31826c"
+    },
+    {
+      "reference": "private-local:detached-check.json",
+      "sha256": "92d3e6a0230b62c3e293df16d8d0f824ec81d8b3ef516dfa9764360cb9ca8dde"
+    },
+    {
+      "reference": "private-local:regeneration-plan.json",
+      "sha256": "6f5fc5d2b2bb5abd5b9ab481e24924696126fb52dc2be6b9e575b1c5a5bb3f6b"
+    },
+    {
+      "reference": "private-local:application-validation.json",
+      "sha256": "2877b82a08de7660b39bdcc3d7d135a3cd34467d44fadc76737cf03960a16a3f"
+    },
+    {
+      "reference": "private-local:verify.stderr",
+      "sha256": "a44a76483df22fce5e2d11f26e47cb1cd5fcca8a8c666e70ee090eea6b7c34a2"
+    },
+    {
+      "reference": "private-local:verify-web.stdout",
+      "sha256": "5ca78bda60502465576c667626f05e1f89614f77685420d0916875134800a9ae"
+    },
+    {
+      "reference": "private-local:smoke-resource.stdout",
+      "sha256": "db2b48b3b7ccb17702a9749117a810a124c3a737ecf95371ea08fb7f617fa363"
+    },
+    {
+      "reference": "private-local:preservation-final.json",
+      "sha256": "06d4b7b80d8350e11f8f17a1af0eb1fadfd87dc6625395a593e697881a4491b9"
+    },
+    {
+      "reference": "private-local:doctor-recorded.json",
+      "sha256": "67bedf4250f29b15a065af977ded43557cdacc7d8700101a36e4328a89db8695"
+    }
+  ]
+}

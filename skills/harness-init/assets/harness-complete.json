@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "language": "en",
+  "documentation_root": "docs/harness",
+  "name": "Greeting workspace",
+  "targets": [
+    "codex",
+    "claude-code"
+  ],
+  "sources": [
+    {
+      "path": "README.md"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/harness/overview.md",
+      "body": "# Greeting workspace\n\nThe API, client and worker form one greeting journey. Resolve their checkouts through the workspace local mapping. The product acceptance source owns the expected greeting and receipt.\n\nStart with [development and testing](development.md), [release rehearsal](release.md), or [investigation](operations.md). Use [workspace background](../../README.md) as the starting source. Hosted environments and customer availability remain pending until their own evidence is supplied.\n\nUse [testing](testing.md) for acceptance and negative cases, [environments](environments.md) for target boundaries, and [toolchain](toolchain.md) for prerequisites."
+    },
+    {
+      "path": "docs/harness/development.md",
+      "body": "# Development and testing\n\nThe synthetic target applications require Python; harness helpers require Node.js 24+. Inspect each member's README for its supported runtime and commands. Run the e2e member's smoke.py from the selected checkout with Python 3.11+. It starts a loopback API, invokes the client, sends its greeting to the worker and stops its own API process. Expect an accepted receipt for Casey and matching supplied source revisions. Capture the command, checkout revisions and result.\n\nThe worker reject option is an intentional negative fixture. See [workspace background](../../README.md)."
+    },
+    {
+      "path": "docs/harness/release.md",
+      "body": "# Release rehearsal\n\nThis fixture models release evidence locally. It does not define a hosted deployment workflow. Use the e2e member's expected, stale, skipped and business-failed scenarios to distinguish successful behavior from the wrong running version, an unexecuted deployment and failed acceptance. Keep expected artifacts separate from observed ones.\n\nBefore adding a real release route, establish its target, artifact, trigger, required project authorization, runtime observation and rollback. Sources: [workspace background](../../README.md)."
+    },
+    {
+      "path": "docs/harness/operations.md",
+      "body": "# Investigate the greeting journey\n\nFirst establish the selected environment, time and observed symptom. Follow the client request to the API response and then the worker receipt. Compare availability, component versions and business acceptance separately. A healthy old API is still the wrong release. Identify the failing component and cite its source or bounded observation.\n\nCloud accounts, dashboards, escalation owners and production log queries are not provided by this local fixture. Keep them pending. Sources: [workspace background](../../README.md)."
+    },
+    {
+      "path": "docs/harness/testing.md",
+      "body": "# Testing the greeting journey\n\nThe e2e member owns smoke.py, which starts a loopback API, invokes the real client, sends the greeting to the worker and stops its own API. Resolve the e2e checkout through the local member mapping, read its README and run the requested scenario from that checkout with Python 3.11+. The product-docs acceptance source owns the expected Hello, Casey! message and accepted receipt.\n\nThe expected scenario exits 0. The stale scenario exits 1 even if health and the greeting pass, because the API revision differs. The skipped scenario exits 2 without starting the runtime. The business-failed scenario exits 1 when the worker rejects the greeting despite matching versions. Preserve each result and compare deployment, running version, technical and business evidence separately.\n\nUse the runner's evidence option to write a local JSON record outside shared source. Record the actual target, source revisions, command, time and result. Do not treat a declared CI job or a local passing result as a hosted CI run. The generated harness gate checks configuration; application CI must use the existing project's real setup and test commands. Sources: [workspace background](../../README.md), the e2e README and smoke.py, and the product-docs acceptance source resolved by member ID."
+    },
+    {
+      "path": "docs/harness/environments.md",
+      "body": "# Environment boundaries\n\nThis synthetic workspace models local processes on loopback. The smoke launcher owns its API listener, supplies the example revisions and stops its process after the scenario. Member checkouts come from the ignored local registry mapping; shared guides contain stable member IDs rather than personal paths.\n\nNo hosted cloud account, subscription, project, region, service identifier, deployment target, credential source or customer exposure is established by this fixture. Keep these facts pending until a real project supplies its environment and infrastructure sources. A source revision declared by this local application is not a production artifact attestation.\n\nFor manual API use, read the API README, sample environment file and startup code together. They own the listen address, port override and revision input. Inspect port ownership before starting a process; the smoke launcher selects its own free loopback port. See [development](development.md) and [release rehearsal](release.md). Source: [workspace background](../../README.md) plus the selected members' configuration and startup sources."
+    },
+    {
+      "path": "docs/harness/toolchain.md",
+      "body": "# Toolchain for the synthetic workspace\n\nHarness helpers require Node.js 24 or newer. The combined synthetic application exercise uses Python 3.11+ and Git to read checkout revisions; individual member constraints remain owned by their README and manifests. The fixture applications use Python standard-library modules and need no third-party package installation.\n\nInspect effective runtime versions before executing the selected scenario. Use the project's existing version manager and package workflow; inspect-only or documentation-only choices do not authorize installation. Preserve runtime differences between local, CI and deployed contexts instead of substituting an untested version claim.\n\nThis local fixture needs no cloud CLI, login or token. Provider tools become relevant only after a real platform and access method are selected. Keep machine readiness in local evidence, distinct from these requirements. Record the actual runtime, command and smoke outcome, and stop only processes started by this run. Sources: [workspace background](../../README.md), member runtime/manifest sources and the [development](development.md) and [testing](testing.md) routes."
+    }
+  ],
+  "skills": [
+    {
+      "name": "investigate",
+      "description": "Trace a failed greeting through the API, client and worker using their checkouts and observed results.",
+      "body": "Read the workspace investigation guide and the selected member READMEs. Establish the environment and symptom, trace the failing boundary and compare source revisions. Report the evidence, unresolved facts and next check. Do not report a hosted deployment from local fixture results. Use the [report fields](references/report.md).",
+      "resources": [
+        {
+          "path": "references/report.md",
+          "body": "# Report fields\n\nRecord the selected environment, component, expected behavior, observed result, revision, evidence reference and next action. Keep credentials and raw logs out of the report.\n"
+        }
+      ]
+    },
+    {
+      "name": "test",
+      "description": "Run the synthetic greeting journey and distinguish technical success from business acceptance.",
+      "body": "Locate the e2e member through the local checkout mapping and read its README. Run the requested smoke scenario with Python 3.11+. Record API, client and worker revisions, the actual command and exit result. A stale version, skipped deployment or rejected worker receipt must retain its own outcome."
+    }
+  ],
+  "commands": [
+    {
+      "name": "release-check",
+      "description": "Explicitly inspect the evidence for a requested greeting release rehearsal.",
+      "body": "Read the workspace release guide. Resolve the selected evidence record and expected environment, evaluate each required component and report version, technical and business checks separately. Missing deployment evidence remains pending. This command verifies evidence and does not trigger a deployment."
+    }
+  ],
+  "agents": [
+    {
+      "name": "reader",
+      "description": "Trace one selected greeting component and return source locations to the parent task.",
+      "body": "Read the selected member instructions and trace its relevant entry point to the observed behavior. Return file and symbol references, responsibilities and uncertainty. Keep this assignment observational and do not edit files. The parent session still owns tool permissions and any execution scope."
+    }
+  ],
+  "rules": [
+    {
+      "name": "evidence",
+      "body": "# Evidence rules\n\nKeep requested scope, observed source configuration and executed results separate. Never infer hosted release availability from a successful local smoke. Preserve existing runtime constraints. In this synthetic team policy, force-pushing shared history is excluded; ordinary pushes retain the host's normal permission handling."
+    }
+  ],
+  "settings": {
+    "codex": {
+      "sandbox_mode": "workspace-write",
+      "approval_policy": "on-request"
+    },
+    "claude_code": {
+      "defaultMode": "default"
+    },
+    "commands": [
+      {
+        "prefix": [
+          "git",
+          "push",
+          "--force"
+        ],
+        "decision": "deny",
+        "reason": "The synthetic team excludes force-pushing shared history."
+      },
+      {
+        "prefix": [
+          "git",
+          "push"
+        ],
+        "decision": "ask",
+        "reason": "Review the selected destination and changes under the project's publication scope."
+      }
+    ]
+  },
+  "hooks": {
+    "guards": [
+      {
+        "id": "shared-history",
+        "contains_all": [
+          "git push",
+          "--force"
+        ],
+        "reason": "Shared-history rewrites are excluded by this synthetic team's policy."
+      }
+    ],
+    "cases": [
+      {
+        "name": "ordinary-push-keeps-native-permissions",
+        "input": {
+          "hook_event_name": "PreToolUse",
+          "tool_name": "Bash",
+          "tool_input": {
+            "command": "git push origin topic"
+          }
+        },
+        "expected": "pass"
+      },
+      {
+        "name": "force-push-blocked",
+        "input": {
+          "hook_event_name": "PreToolUse",
+          "tool_name": "Bash",
+          "tool_input": {
+            "command": "git push --force origin topic"
+          }
+        },
+        "expected": "deny"
+      },
+      {
+        "name": "codex-command-shape",
+        "input": {
+          "hook_event_name": "PreToolUse",
+          "tool_name": "exec_command",
+          "tool_input": {
+            "cmd": "git push origin topic --force-with-lease"
+          }
+        },
+        "expected": "deny"
+      },
+      {
+        "name": "other-tools-unchanged",
+        "input": {
+          "hook_event_name": "PreToolUse",
+          "tool_name": "Read",
+          "tool_input": {
+            "file_path": "README.md"
+          }
+        },
+        "expected": "pass"
+      }
+    ]
+  },
+  "ci": {
+    "provider": "github-actions",
+    "checks": []
+  },
+  "document_coverage": [
+    {
+      "topic": "index",
+      "path": "docs/harness/overview.md"
+    },
+    {
+      "topic": "development",
+      "path": "docs/harness/development.md"
+    },
+    {
+      "topic": "testing",
+      "path": "docs/harness/testing.md"
+    },
+    {
+      "topic": "environments",
+      "path": "docs/harness/environments.md"
+    },
+    {
+      "topic": "release",
+      "path": "docs/harness/release.md"
+    },
+    {
+      "topic": "operations",
+      "path": "docs/harness/operations.md"
+    },
+    {
+      "topic": "toolchain",
+      "path": "docs/harness/toolchain.md"
+    }
+  ]
+}

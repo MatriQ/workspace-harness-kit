@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "scenario": "Mori documentation initialization, native local startup and guide replay",
+  "scope": "Isolated local clone; original checkout unchanged; no release acceptance claimed",
+  "source_revision": "b04aea4f00806a08dd2b8fa43c72add45633a60e",
+  "status": "passed",
+  "status_scope": "Selected development/testing scenario after correction of the initial account-login assumption",
+  "toolchain": {
+    "node": "v24.12.0",
+    "npm": "11.6.2",
+    "python": "Python 3.14.5",
+    "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)\nTarget: arm64-apple-macosx27.2.0"
+  },
+  "initialization": {
+    "member": "mori",
+    "mode": "init",
+    "targets": [
+      "codex"
+    ],
+    "selected_artifacts": [
+      "documents"
+    ],
+    "selected_activities": [
+      "development",
+      "testing"
+    ],
+    "generated_guides": [
+      "docs/engineering/index.md",
+      "docs/engineering/local-rehearsal.md"
+    ],
+    "explicit_generation_sources": 39,
+    "registry_sources": 53,
+    "document_reviews": 8,
+    "covered_topics": [
+      "index",
+      "development",
+      "testing",
+      "toolchain"
+    ],
+    "workspace_strict": "passed",
+    "artifact_check": "passed",
+    "detached_check": "passed"
+  },
+  "application_checks": {
+    "quick_engineering": {
+      "status": "passed",
+      "recovered": true,
+      "cause": "Copied checkout initially lacked Prettier/Ruff; reused existing local installations and removed temporary links afterward."
+    },
+    "web": {
+      "status": "passed",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "javascript_files": 39,
+      "python_files": 10
+    },
+    "native_tests": {
+      "status": "passed",
+      "total": 179,
+      "passed": 172,
+      "skipped": 7,
+      "failed": 0,
+      "live_opt_ins": "disabled"
+    },
+    "service_release_build": {
+      "status": "passed",
+      "product": "MoriService",
+      "dependency": {
+        "name": "Yams",
+        "version": "6.2.2",
+        "revision": "a27b21e0c81c5bf42049b897a62aaf387e80f279",
+        "source": "existing pinned local cache"
+      }
+    },
+    "smoke_attempts": [
+      {
+        "attempt": 1,
+        "status": "failed",
+        "reason": "Incorrect expectation that the account-gated /api/state route lists projects without login; failed assertion retained; owned process and runtime cleaned up."
+      },
+      {
+        "attempt": 2,
+        "status": "passed",
+        "assertions": 12,
+        "source": "corrected smoke expectations from API and CloudGateway implementation"
+      },
+      {
+        "attempt": 3,
+        "status": "passed",
+        "assertions": 12,
+        "source": "exact final generated runbook block replay"
+      }
+    ],
+    "observed_artifact": {
+      "kind": "runtime_revision",
+      "value": "sha256:cc0b7c7d8bfb2f57a5f8f69e11fddce39009e7bc1c593d0a08f1694ef1bb17b1"
+    },
+    "checks": [
+      {
+        "name": "isolated runtime initialized",
+        "status": "passed",
+        "details": {
+          "exit_code": 0
+        }
+      },
+      {
+        "name": "private credential permissions",
+        "status": "passed"
+      },
+      {
+        "name": "native health",
+        "status": "passed",
+        "details": {
+          "version": "0.3.0",
+          "engine": "swift-native"
+        }
+      },
+      {
+        "name": "owned candidate identity",
+        "status": "passed"
+      },
+      {
+        "name": "public page served from built assets",
+        "status": "passed",
+        "details": {
+          "status": 200,
+          "body_sha256": "a6f3a642853c30c1f75802361d43a3223f18a9c58db55206a5901fc0cf7939ea"
+        }
+      },
+      {
+        "name": "source manifest is not served",
+        "status": "passed",
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "name": "Git metadata is not served",
+        "status": "passed",
+        "details": {
+          "status": 404
+        }
+      },
+      {
+        "name": "account-gated workspace rejects an unsigned-in runtime",
+        "status": "passed",
+        "details": {
+          "status": 401
+        }
+      },
+      {
+        "name": "fresh runtime requires account login",
+        "status": "passed",
+        "details": {
+          "status": 200,
+          "authenticated": false
+        }
+      },
+      {
+        "name": "local runtime preferences readable",
+        "status": "passed",
+        "details": {
+          "status": 200
+        }
+      },
+      {
+        "name": "worker synchronized selected checkout to disposable database",
+        "status": "passed",
+        "details": {
+          "matching_projects": 1,
+          "evidence_method": "read-only query of disposable runtime database"
+        }
+      },
+      {
+        "name": "no model task submitted",
+        "status": "passed",
+        "details": {
+          "tasks": 0
+        }
+      }
+    ],
+    "cleanup": {
+      "shutdown_exit_code": 0,
+      "owned_port_closed": true,
+      "private_runtime_removed": true
+    }
+  },
+  "doctor": {
+    "status": "pending",
+    "checks": [
+      {
+        "id": "harness-agent-codex",
+        "layer": "agent",
+        "status": "pending"
+      },
+      {
+        "id": "mori-native-tools",
+        "layer": "tool",
+        "status": "passed"
+      },
+      {
+        "id": "mori-native-smoke",
+        "layer": "smoke",
+        "status": "passed"
+      }
+    ],
+    "static_command_pending": [
+      "docs/engineering/local-rehearsal.md:35: python3 - <<'PYSMOKE': Shell operators, quoting or substitutions need an explicit review",
+      "docs/engineering/index.md:0: swift test --package-path packages/native: No supported literal script entry point",
+      "docs/engineering/local-rehearsal.md:0: swift test --package-path packages/native: No supported literal script entry point",
+      "docs/engineering/local-rehearsal.md:0: swift build --package-path apps/server -c release --product MoriService: No supported literal script entry point"
+    ]
+  },
+  "preservation": {
+    "source_revision": "b04aea4f00806a08dd2b8fa43c72add45633a60e",
+    "original_tracked_files": 453,
+    "original_changed_files": [],
+    "original_status_unchanged": true,
+    "original_head_unchanged": true,
+    "copied_tracked_changes": [
+      "AGENTS.md",
+      "harness-progress.txt",
+      "harness-tasks.json"
+    ],
+    "existing_task_objects_preserved": true,
+    "existing_task_count": 86,
+    "new_task_count": 2,
+    "progress_prefix_preserved": true,
+    "handwritten_agents_preserved": true,
+    "diff_check_exit_code": 0
+  },
+  "not_established": [
+    "Codex automatic host discovery and trust",
+    "Authenticated account workspace and model/provider behavior",
+    "macOS GUI build and desktop operation",
+    "Hosted CI execution",
+    "Cloud deployment or release acceptance"
+  ],
+  "evidence": [
+    {
+      "ref": "rehearsal/artifacts/native-execution.json",
+      "sha256": "c714a5eca51c9bbdb7dee252e181070ce355c66a1e43d6d8a8a877940d76e345"
+    },
+    {
+      "ref": "rehearsal/artifacts/native-test-summary.json",
+      "sha256": "b2342d35775ad4102d16834b837ec608e098f4ce4a5497772f4a233ea4d20d97"
+    },
+    {
+      "ref": "rehearsal/artifacts/attempt-1-native-smoke.json",
+      "sha256": "c5cb2974faf136331cc83679d26305c4f694baab63452566f5afa5e65de9c8f0"
+    },
+    {
+      "ref": "rehearsal/artifacts/native-smoke.json",
+      "sha256": "33f8b2d678b9e12f713c78c9aec52f9c4d7f419ca84a22653ecaa3ad8f02745e"
+    },
+    {
+      "ref": "rehearsal/artifacts/document-replay.json",
+      "sha256": "32a2353b900a7fff6f12a82e3c2418733d641db05472b857c211825be0faac10"
+    },
+    {
+      "ref": "rehearsal/artifacts/replayed-document-smoke.py",
+      "sha256": "dae364e1c23ab05b37789fd3856c2deb9d9ca61d6955b6967bf402b6b11cb571"
+    },
+    {
+      "ref": "rehearsal/artifacts/workspace-plan.json",
+      "sha256": "354a1919e9763673a784afa58f57ea594feeb00d93bf751f27e0b7bea8c8a1ea"
+    },
+    {
+      "ref": "rehearsal/artifacts/generation-plan.json",
+      "sha256": "51bc65217fcca8da57cee3ba0c28d8d6702e1b45b040db38c6fa721d2894367e"
+    },
+    {
+      "ref": "rehearsal/artifacts/workspace-strict-check.json",
+      "sha256": "aa0249c695965624864c0840b43e0825b3ef0964683fece680e91e8b74601b16"
+    },
+    {
+      "ref": "rehearsal/artifacts/generation-check.json",
+      "sha256": "ccb65b18f2353d03fa86bfd0fd08c753f50a3f614907f22d62bdafcdf2053b12"
+    },
+    {
+      "ref": "rehearsal/artifacts/detached-check.json",
+      "sha256": "2d7340a062a31d6d8be1fb67bcca7296763b674212a2f0eb6071e02c1020ccc3"
+    },
+    {
+      "ref": "rehearsal/artifacts/doctor-final.json",
+      "sha256": "e9c4b36530b223fea4c37d21b6b50fe531656a9091e957f873a91d5105ec1b62"
+    },
+    {
+      "ref": "rehearsal/artifacts/preservation-final.json",
+      "sha256": "00cefee796ac5a14e42ca52333760b1eef66527c320e945b404cdbdd870ba9d7"
+    }
+  ],
+  "kit_verification": {
+    "npm run check:examples": "passed",
+    "report_links_and_whitespace": "passed",
+    "structured_counts_and_path_hygiene": "passed"
+  },
+  "documentation_language": "zh-CN",
+  "localization": {
+    "observed_at": "2026-11-12T02:15:38.067543+00:00",
+    "workspace_language": "zh-CN",
+    "member_language": "zh-CN",
+    "generation_language": "zh-CN",
+    "coverage_heading": "开发流程",
+    "workspace_strict": "passed",
+    "generation_check": "passed",
+    "detached_check": "passed",
+    "regeneration": "unchanged",
+    "executable_blocks": {
+      "status": "passed",
+      "unchanged_blocks": 2,
+      "sha256": [
+        "3958612db8bbfe772292e1832cb4ad138e07736df83c957e51f37f240d7afec6",
+        "6e06f8631012453290ad2e22ea369412a5e970804ee632cacc9b077d4a520b7f"
+      ]
+    },
+    "doctor_status_after_configuration_change": "pending",
+    "runtime_observations": "Historical evidence retained under its original binding; application execution was not repeated for translation.",
+    "kit_verification": {
+      "npm test": {
+        "passed": 129,
+        "failed": 0
+      },
+      "npm run check:bundles": "passed",
+      "npm run check:evals": "passed",
+      "npm run check:examples": "passed"
+    },
+    "preservation": {
+      "original_tracked_files": 453,
+      "original_changed_files": [],
+      "original_head_unchanged": true,
+      "original_status_unchanged": true,
+      "handwritten_entrypoint_preserved": true,
+      "historical_task_objects_preserved": 86,
+      "new_tasks": 3
+    },
+    "evidence": [
+      {
+        "ref": "localization/artifacts/prose-review.json",
+        "sha256": "b5289bd9a5cbfac2d0c5a6a1c6b72cf2bc2b7b266e1f9e2dba097199fcdab605"
+      },
+      {
+        "ref": "localization/artifacts/workspace-strict-check.json",
+        "sha256": "aa0249c695965624864c0840b43e0825b3ef0964683fece680e91e8b74601b16"
+      },
+      {
+        "ref": "localization/artifacts/generation-check.json",
+        "sha256": "ede5e2e30a13d2fb4746fde99e41a93905b9ef8efb6b58e17a24089102eea859"
+      },
+      {
+        "ref": "localization/artifacts/detached-check.json",
+        "sha256": "4cf0b027cb79586b9f8d1f41a435eb6134845e5200a865d35fdd1715ad6bc9bd"
+      },
+      {
+        "ref": "localization/artifacts/regeneration-plan.json",
+        "sha256": "79de599a3f755c152dc5c19338e3cf5381fe37dc3364843233c34fe7ef046e1e"
+      },
+      {
+        "ref": "localization/artifacts/doctor-after-translation.json",
+        "sha256": "c2c8f14b28a6a112f507f685221b7e3fce436f7ed3905cf35c8274f24a572a1d"
+      },
+      {
+        "ref": "localization/artifacts/preservation-final.json",
+        "sha256": "1599be4402f51cfef6b715254b580400efe40dda74bd4b2891367fbd6110722b"
+      }
+    ]
+  }
+}

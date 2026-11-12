@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "exercise": "mori-clean-reinitialization",
+  "source_revision": "b04aea4f00806a08dd2b8fa43c72add45633a60e",
+  "target": "original-mori-checkout",
+  "language": "zh-CN",
+  "scope": [
+    "development",
+    "testing",
+    "local-startup"
+  ],
+  "cleanup": {
+    "old_files_archived": 43,
+    "clean_state_confirmed": true,
+    "original_backup_hashes_verified": true,
+    "historical_tasks_and_product_designs_retained": true
+  },
+  "generation": {
+    "files": 40,
+    "initial_actions": {
+      "create": 40
+    },
+    "source_files": 39,
+    "old_agent_documents_used_as_sources": false,
+    "documents": 9,
+    "workflow_skills": 4,
+    "explicit_commands": 3,
+    "agents": 2,
+    "rules": 2,
+    "smoke_scripts": 1,
+    "configuration": {
+      "kind": "repository-harness",
+      "targets": [
+        {
+          "target": "codex",
+          "entrypoint": "AGENTS.md"
+        },
+        {
+          "target": "claude-code",
+          "entrypoint": "CLAUDE.md"
+        }
+      ],
+      "parts": {
+        "documents": [
+          "docs/engineering/index.md",
+          "docs/engineering/architecture.md",
+          "docs/engineering/client-platforms.md",
+          "docs/engineering/toolchain.md",
+          "docs/engineering/development.md",
+          "docs/engineering/validation.md",
+          "HARNESS.md",
+          "skills/mori-engineering/SKILL.md",
+          "docs/engineering/agent-workflows.md"
+        ],
+        "skills": [
+          ".agents/skills/mori-guide/SKILL.md",
+          ".agents/skills/mori-change/SKILL.md",
+          ".agents/skills/mori-test/SKILL.md",
+          ".agents/skills/mori-local-setup/SKILL.md",
+          ".claude/skills/mori-guide/SKILL.md",
+          ".claude/skills/mori-change/SKILL.md",
+          ".claude/skills/mori-test/SKILL.md",
+          ".claude/skills/mori-local-setup/SKILL.md"
+        ],
+        "commands": [
+          ".agents/skills/mori-verify/SKILL.md",
+          ".agents/skills/mori-verify/agents/openai.yaml",
+          ".agents/skills/mori-resume/SKILL.md",
+          ".agents/skills/mori-resume/agents/openai.yaml",
+          ".agents/skills/mori-local-smoke/SKILL.md",
+          ".agents/skills/mori-local-smoke/agents/openai.yaml",
+          ".claude/commands/mori-verify.md",
+          ".claude/commands/mori-resume.md",
+          ".claude/commands/mori-local-smoke.md"
+        ],
+        "agents": [
+          ".codex/agents/mori-code-reader.toml",
+          ".codex/agents/mori-test-planner.toml",
+          ".claude/agents/mori-code-reader.md",
+          ".claude/agents/mori-test-planner.md"
+        ],
+        "rules": [
+          ".harness/rules/mori-engineering-boundaries.md",
+          ".harness/rules/mori-validation-evidence.md",
+          ".claude/rules/mori-engineering-boundaries.md",
+          ".claude/rules/mori-validation-evidence.md"
+        ],
+        "settings": [],
+        "hooks": [],
+        "ci": []
+      }
+    }
+  },
+  "checks": {
+    "artifacts": {
+      "status": "passed",
+      "errors": [],
+      "pending_static_command_checks": [
+        "docs/engineering/toolchain.md:7: node --version: No supported literal script entry point",
+        "docs/engineering/toolchain.md:10: python3 --version: No supported literal script entry point",
+        "docs/engineering/toolchain.md:18: python3 -m venv .venv: No supported literal script entry point",
+        "HARNESS.md:15: node scripts/harness.mjs add TASK_ID \"任务标题\" \"实际验证命令\": Shell operators, quoting or substitutions need an explicit review",
+        "HARNESS.md:16: node scripts/checkpoint.mjs TASK_ID in_progress \"已核实的进度、检查和剩余工作\": Shell operators, quoting or substitutions need an explicit review",
+        "HARNESS.md:17: node scripts/checkpoint.mjs TASK_ID completed \"实际结果和证据位置\": Shell operators, quoting or substitutions need an explicit review"
+      ]
+    },
+    "workspace": {
+      "errors": [],
+      "warnings": [],
+      "reviews": {
+        "current": 37
+      }
+    },
+    "detached_checker": "passed",
+    "repeat_preview": {
+      "unchanged": 40
+    },
+    "application_commands": [
+      {
+        "name": "mori-verify",
+        "argv": [
+          "npm",
+          "run",
+          "verify"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:06:32.528602+00:00",
+        "finished_at": "2026-11-12T03:06:35.177273+00:00"
+      },
+      {
+        "name": "mori-verify-web",
+        "argv": [
+          "npm",
+          "run",
+          "verify:web"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:06:32.528816+00:00",
+        "finished_at": "2026-11-12T03:06:34.727487+00:00"
+      },
+      {
+        "name": "mori-verify-native",
+        "argv": [
+          "npm",
+          "run",
+          "verify:native"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:06:32.528886+00:00",
+        "finished_at": "2026-11-12T03:07:09.711587+00:00"
+      }
+    ],
+    "swift_tests": {
+      "total": 179,
+      "passed": 172,
+      "skipped": 7,
+      "failed": 0
+    },
+    "native_release_builds": [
+      "MoriService",
+      "Mori"
+    ],
+    "web_tests": {
+      "total": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    "guide_replay": [
+      {
+        "name": "guide-build-web",
+        "argv": [
+          "npm",
+          "run",
+          "build:web"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:07:56.341858+00:00",
+        "finished_at": "2026-11-12T03:07:56.474877+00:00"
+      },
+      {
+        "name": "guide-build-server",
+        "argv": [
+          "npm",
+          "run",
+          "build:server"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:07:56.475175+00:00",
+        "finished_at": "2026-11-12T03:07:58.264149+00:00"
+      },
+      {
+        "name": "guide-local-smoke",
+        "argv": [
+          "python3",
+          "skills/mori-engineering/scripts/local-smoke.py"
+        ],
+        "exit_code": 0,
+        "started_at": "2026-11-12T03:07:58.264424+00:00",
+        "finished_at": "2026-11-12T03:07:59.802179+00:00"
+      }
+    ],
+    "candidate_smoke": {
+      "status": "passed",
+      "observed_at": "2026-11-12T03:07:58.299743+00:00",
+      "candidate": "apps/server/.build/release/MoriService",
+      "checks": [
+        {
+          "name": "candidate-version",
+          "status": "passed"
+        },
+        {
+          "name": "isolated-installation",
+          "status": "passed"
+        },
+        {
+          "name": "private-config-permissions",
+          "status": "passed"
+        },
+        {
+          "name": "isolated-databases",
+          "status": "passed"
+        },
+        {
+          "name": "health",
+          "status": "passed"
+        },
+        {
+          "name": "running-candidate-identity",
+          "status": "passed"
+        },
+        {
+          "name": "workspace-page",
+          "status": "passed"
+        },
+        {
+          "name": "account-page",
+          "status": "passed"
+        },
+        {
+          "name": "source-not-public",
+          "status": "passed"
+        },
+        {
+          "name": "credentials-not-public",
+          "status": "passed"
+        },
+        {
+          "name": "new-installation-needs-login",
+          "status": "passed"
+        },
+        {
+          "name": "business-state-requires-account",
+          "status": "passed"
+        },
+        {
+          "name": "candidate-still-running",
+          "status": "passed"
+        }
+      ],
+      "cleanup": {
+        "process_stopped": true,
+        "temporary_home_removed": true
+      },
+      "binary_sha256": "90fd382c9d6c930987a8fcc18bdce5208b37b2bf0b1d1862ea4b1cb3254cef34",
+      "version": "Mori native 0.3.0"
+    },
+    "codex_discovery": {
+      "status": "passed",
+      "host": "codex-cli 0.167.0",
+      "method": "app-server skills/list",
+      "observed_at": "2026-11-12T03:08:43.572156+00:00",
+      "model_turns": 0,
+      "skills": [
+        {
+          "name": "mori-change",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-change/SKILL.md"
+        },
+        {
+          "name": "mori-guide",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-guide/SKILL.md"
+        },
+        {
+          "name": "mori-local-setup",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-local-setup/SKILL.md"
+        },
+        {
+          "name": "mori-local-smoke",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-local-smoke/SKILL.md"
+        },
+        {
+          "name": "mori-resume",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-resume/SKILL.md"
+        },
+        {
+          "name": "mori-test",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-test/SKILL.md"
+        },
+        {
+          "name": "mori-verify",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-verify/SKILL.md"
+        }
+      ],
+      "target_errors": [],
+      "owned_host_process_stopped": true
+    },
+    "doctor": {
+      "status": "pending",
+      "checks": [
+        {
+          "id": "harness-agent-codex",
+          "layer": "agent",
+          "status": "pending",
+          "reason": "Codex 真实 skills/list 已发现并启用全部 7 个项目入口；未创建模型会话，完整 AGENTS 加载、子代理发现与信任状态仍待目标会话确认。"
+        },
+        {
+          "id": "harness-agent-claude-code",
+          "layer": "agent",
+          "status": "pending",
+          "reason": "No observation"
+        },
+        {
+          "id": "mori-local-verification",
+          "layer": "tool",
+          "status": "passed",
+          "reason": "当前 Mori 中 quick、Web、native 验证全部以 0 退出；Web 8 项通过；Swift 179 项中 172 通过、7 项显式跳过、0 失败；两个原生应用构建通过。"
+        },
+        {
+          "id": "mori-candidate-smoke",
+          "layer": "smoke",
+          "status": "passed",
+          "reason": "按新指南重建网页与服务候选，临时安装烟测 13 项通过，已核对候选哈希、进程身份、页面和登录边界；进程停止且临时目录清理完成。"
+        }
+      ]
+    }
+  },
+  "preservation": {
+    "original_tracked_files": 453,
+    "changed_existing_files": [
+      "AGENTS.md",
+      "HARNESS.md",
+      "docs/engineering/architecture.md",
+      "docs/engineering/client-platforms.md",
+      "docs/engineering/validation.md",
+      "harness-progress.txt",
+      "harness-tasks.json",
+      "skills/mori-engineering/SKILL.md",
+      "skills/mori-engineering/agents/openai.yaml"
+    ],
+    "unexpected_changes": [],
+    "application_sources_preserved": true,
+    "historical_tasks_preserved": 87,
+    "progress_prefix_preserved": true,
+    "backup_files_verified": 43,
+    "head_unchanged": true,
+    "local_binding_ignored": true,
+    "diff_check": "passed",
+    "task_check": "passed",
+    "new_task_status": "completed",
+    "removed_old_guide": "docs/engineering/local-rehearsal.md",
+    "removed_old_skill_metadata": "skills/mori-engineering/agents/openai.yaml"
+  },
+  "planning_corrections": [
+    {
+      "result": "rejected-before-generation",
+      "issue": "Unsupported source_revision artifact kind",
+      "resolution": "Use git_commit with the full source revision",
+      "evidence": "generation-plan-invalid.json"
+    },
+    {
+      "result": "rejected-before-generation",
+      "issue": "Authored resource under reserved .harness directory",
+      "resolution": "Place the smoke script in skills/mori-engineering/scripts and update its root resolution",
+      "evidence": "generation-plan-invalid-resource.json"
+    }
+  ],
+  "limits": [
+    "Full Codex and Claude Code model-session loading and trust have not been observed.",
+    "Six static command snippets remain pending because the bounded parser does not support version/module probes or quoted task examples.",
+    "The smoke verifies a new local installation and the unauthenticated boundary; it does not authenticate an account or call a live model.",
+    "The existing native-chat-action-analysis task still has its historical missing-validation warning."
+  ],
+  "evidence": [
+    {
+      "reference": "private-local:cleanup.json",
+      "sha256": "e4cf70251bcbb462b3f340a2f9d1f7b4412e99549346f12537dae65fc969a809"
+    },
+    {
+      "reference": "private-local:discovery.json",
+      "sha256": "9206afa9182f66ec69a5502f266f759eba3567157c304b2c97b8c4beed9be8ef"
+    },
+    {
+      "reference": "private-local:generation-plan.json",
+      "sha256": "4e258a672b32fccaacaa1f03d848a1fd15ccf608b1a774b9161e3c06b914a810"
+    },
+    {
+      "reference": "private-local:generation-apply.json",
+      "sha256": "b63c9e91e012d17848ea6bc3dc96ea90099257d30f1b5d843e7df7c70640df79"
+    },
+    {
+      "reference": "private-local:workspace-strict-check.json",
+      "sha256": "3e05662ff7ad67c7fd5dfd94b4271d691533777f18bfe1304e7ed25b7f02c29d"
+    },
+    {
+      "reference": "private-local:generation-check-final.json",
+      "sha256": "fd8e94682d1ec2d6a57e09296324d8988dc626fc4627f9003c2465d91f3d8be3"
+    },
+    {
+      "reference": "private-local:detached-check.json",
+      "sha256": "aae364e88fabcf214111923c30617aac5e5c418c821934a97816153ea600c90b"
+    },
+    {
+      "reference": "private-local:regeneration-plan.json",
+      "sha256": "4e2fa848e75d60455e69c2b650a7d5e9a244e08ebaeea2ae8f24daa292c1c27f"
+    },
+    {
+      "reference": "private-local:application-validation.json",
+      "sha256": "078da0e24a96f665317275b6e9f525f797606d5c121df76f3ad945224ea10cd9"
+    },
+    {
+      "reference": "private-local:mori-verify.stdout",
+      "sha256": "b3d038846cc2af75abad6670f0f6971e92bde48e09e41d12c2a3ff54378acdd3"
+    },
+    {
+      "reference": "private-local:mori-verify-web.stdout",
+      "sha256": "14f184422cb27bab0b8239afe196ef3230241028bf498874ab5e56414057da0a"
+    },
+    {
+      "reference": "private-local:mori-verify-native.stdout",
+      "sha256": "1efb48220f1f55d3c80900bf2bfc574fabda82c5dbc9fe6ad2833c970aed0d78"
+    },
+    {
+      "reference": "private-local:mori-verify-native.stderr",
+      "sha256": "49e725c8b11d3eff8d0e1c383e9400ed7d5a1cbc96e3ad3e57c3ae178bad7e29"
+    },
+    {
+      "reference": "private-local:guide-replay.json",
+      "sha256": "f69dd045503153df7337ae0f9a1c1952c2560b678fde94ae48a69676306b125c"
+    },
+    {
+      "reference": "private-local:guide-local-smoke.stdout",
+      "sha256": "3e4ea496d868ba9764bbb494df078dd3f4c676d0d47deec0a2a2e9f18aa11a7b"
+    },
+    {
+      "reference": "private-local:codex-discovery.json",
+      "sha256": "f3309dc540de70e2fd8a5c7511fb38489d1141f50586796f172bb065113876fe"
+    },
+    {
+      "reference": "private-local:doctor-final.json",
+      "sha256": "4cb0436d9bd2b0536b14d69c4d0a32660b1a070f4c359e7c74f979be7bf49377"
+    },
+    {
+      "reference": "private-local:preservation-final.json",
+      "sha256": "4d4ffc48806f29938ccc8e11b3e8291d87684b2b088cf771a7091fad716ade5b"
+    },
+    {
+      "reference": "private-local:generation-plan-invalid.json",
+      "sha256": "09aec5f467d2180369e7d5bb68b1c01b191e532aa91f01e0d3de0111919fddc2"
+    },
+    {
+      "reference": "private-local:generation-plan-invalid-resource.json",
+      "sha256": "831f294963fe2215bda7dd9022b37bec313e4c9d79fba5c03a3ea411160c54cf"
+    }
+  ]
+}

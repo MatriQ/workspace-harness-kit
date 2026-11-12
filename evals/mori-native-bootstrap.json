@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "exercise": "mori-native-repository-bootstrap",
+  "source_revision": "b04aea4f00806a08dd2b8fa43c72add45633a60e",
+  "target": "original-mori-checkout",
+  "language": "zh-CN",
+  "scope": [
+    "development",
+    "testing",
+    "local-startup"
+  ],
+  "targets": [
+    "codex",
+    "claude-code"
+  ],
+  "generated_files": 33,
+  "logical_capabilities": {
+    "skills": 4,
+    "explicit_commands": 3,
+    "agents": 2,
+    "rules": 2,
+    "documents": 3
+  },
+  "configuration": {
+    "kind": "repository-harness",
+    "targets": [
+      {
+        "target": "codex",
+        "entrypoint": "AGENTS.md"
+      },
+      {
+        "target": "claude-code",
+        "entrypoint": "CLAUDE.md"
+      }
+    ],
+    "parts": {
+      "documents": [
+        "docs/engineering/index.md",
+        "docs/engineering/local-rehearsal.md",
+        "docs/engineering/agent-workflows.md"
+      ],
+      "skills": [
+        ".agents/skills/mori-guide/SKILL.md",
+        ".agents/skills/mori-change/SKILL.md",
+        ".agents/skills/mori-test/SKILL.md",
+        ".agents/skills/mori-local-setup/SKILL.md",
+        ".claude/skills/mori-guide/SKILL.md",
+        ".claude/skills/mori-change/SKILL.md",
+        ".claude/skills/mori-test/SKILL.md",
+        ".claude/skills/mori-local-setup/SKILL.md"
+      ],
+      "commands": [
+        ".agents/skills/mori-verify/SKILL.md",
+        ".agents/skills/mori-verify/agents/openai.yaml",
+        ".agents/skills/mori-resume/SKILL.md",
+        ".agents/skills/mori-resume/agents/openai.yaml",
+        ".agents/skills/mori-local-smoke/SKILL.md",
+        ".agents/skills/mori-local-smoke/agents/openai.yaml",
+        ".claude/commands/mori-verify.md",
+        ".claude/commands/mori-resume.md",
+        ".claude/commands/mori-local-smoke.md"
+      ],
+      "agents": [
+        ".codex/agents/mori-code-reader.toml",
+        ".codex/agents/mori-test-planner.toml",
+        ".claude/agents/mori-code-reader.md",
+        ".claude/agents/mori-test-planner.md"
+      ],
+      "rules": [
+        ".harness/rules/mori-engineering-boundaries.md",
+        ".harness/rules/mori-validation-evidence.md",
+        ".claude/rules/mori-engineering-boundaries.md",
+        ".claude/rules/mori-validation-evidence.md"
+      ],
+      "settings": [],
+      "hooks": [],
+      "ci": []
+    }
+  },
+  "validation": {
+    "workspace": {
+      "status": "passed",
+      "document_reviews": 32,
+      "errors": [],
+      "warnings": []
+    },
+    "artifacts": {
+      "status": "passed",
+      "scope": "artifacts-and-local-sources",
+      "errors": [],
+      "pending_static_command_checks": [
+        "docs/engineering/local-rehearsal.md:35: python3 - <<'PYSMOKE': Shell operators, quoting or substitutions need an explicit review",
+        "docs/engineering/index.md:0: swift test --package-path packages/native: No supported literal script entry point",
+        "docs/engineering/local-rehearsal.md:0: swift test --package-path packages/native: No supported literal script entry point",
+        "docs/engineering/local-rehearsal.md:0: swift build --package-path apps/server -c release --product MoriService: No supported literal script entry point"
+      ]
+    },
+    "detached_checker": {
+      "status": "passed",
+      "working_directory": "private-evidence-directory"
+    },
+    "regeneration": {
+      "status": "passed",
+      "working_directory": "private-evidence-directory",
+      "actions": {
+        "unchanged": 33
+      },
+      "conflicts": []
+    },
+    "codex_discovery": {
+      "host": "codex-cli 0.167.0",
+      "target": "mori-checkout",
+      "method": "app-server skills/list",
+      "observed_at": "2026-11-12T02:42:24.882965+00:00",
+      "model_turns": 0,
+      "status": "passed",
+      "skills": [
+        {
+          "name": "mori-change",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-change/SKILL.md"
+        },
+        {
+          "name": "mori-guide",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-guide/SKILL.md"
+        },
+        {
+          "name": "mori-local-setup",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-local-setup/SKILL.md"
+        },
+        {
+          "name": "mori-local-smoke",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-local-smoke/SKILL.md"
+        },
+        {
+          "name": "mori-resume",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-resume/SKILL.md"
+        },
+        {
+          "name": "mori-test",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-test/SKILL.md"
+        },
+        {
+          "name": "mori-verify",
+          "enabled": true,
+          "scope": "repo",
+          "path": ".agents/skills/mori-verify/SKILL.md"
+        }
+      ],
+      "target_errors": [],
+      "owned_host_process_stopped": true
+    },
+    "application_commands": [
+      {
+        "name": "mori-verify",
+        "command": [
+          "npm",
+          "run",
+          "verify"
+        ],
+        "exit_code": 0,
+        "observed_at": "2026-11-12T02:40:57.250059+00:00"
+      },
+      {
+        "name": "mori-verify-web",
+        "command": [
+          "npm",
+          "run",
+          "verify:web"
+        ],
+        "exit_code": 0,
+        "observed_at": "2026-11-12T02:40:58.723581+00:00"
+      }
+    ],
+    "web_checks": {
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "javascript_syntax_files": 39,
+      "python_syntax_files": 10
+    },
+    "kit": {
+      "unit_tests": {
+        "status": "passed",
+        "tests": 130,
+        "passed": 130,
+        "failed": 0
+      },
+      "bundles": {
+        "status": "passed"
+      },
+      "evals": {
+        "status": "passed",
+        "fixtures": 12,
+        "agent_runs": 0
+      },
+      "examples": {
+        "status": "passed",
+        "repositories": 5,
+        "skills": 5,
+        "generated_files": 31,
+        "hook_cases": 4,
+        "application_smoke": "passed",
+        "doctor_status": "pending"
+      }
+    },
+    "doctor": {
+      "status": "pending",
+      "checks": [
+        {
+          "id": "harness-agent-codex",
+          "layer": "agent",
+          "status": "pending",
+          "reason": "真实 Codex app-server 的 skills/list 已发现并启用全部 7 个项目入口；本次没有启动模型会话，AGENTS 实际加载、子代理发现及完整信任状态仍需在目标会话确认。"
+        },
+        {
+          "id": "harness-agent-claude-code",
+          "layer": "agent",
+          "status": "pending",
+          "reason": "No observation"
+        },
+        {
+          "id": "mori-local-verification",
+          "layer": "tool",
+          "status": "passed",
+          "reason": "在实际 Mori 检出目录执行 npm run verify 与 npm run verify:web，均以 0 退出；Web 8 项测试及 JS/Python 语法检查通过。"
+        },
+        {
+          "id": "harness-smoke",
+          "layer": "smoke",
+          "status": "pending",
+          "reason": "No observation"
+        }
+      ]
+    }
+  },
+  "preservation": {
+    "original_tracked_files": 453,
+    "changed_existing_files": [
+      "AGENTS.md",
+      "harness-progress.txt",
+      "harness-tasks.json"
+    ],
+    "unchanged_application_and_existing_guides": true,
+    "historical_tasks_preserved": 86,
+    "progress_prefix_preserved": true,
+    "handwritten_agents_preserved": true,
+    "local_binding_ignored": true,
+    "diff_check": "passed",
+    "head_unchanged": true
+  },
+  "boundaries": {
+    "codex_full_session_activation": "pending",
+    "claude_code_version": "2.0.31",
+    "claude_code_full_session_activation": "pending",
+    "new_binding_native_build_and_runtime_smoke": "not-run",
+    "prior_isolated_native_runtime_evidence": "mori-functional-rehearsal.json",
+    "task_check_warning": "Existing native-chat-action-analysis task has no validation command.",
+    "scope_note": "本次确认文件完整性、来源、真实 Codex 项目 Skill 发现与基础／Web 检查；不将此前隔离副本的原生烟测当作新绑定的执行证据。"
+  },
+  "evidence": [
+    {
+      "reference": "private-local:generation-plan.json",
+      "sha256": "127042e541d9dae20f4e3334c39202ab21ca0386db22bb64f186586a4e581331"
+    },
+    {
+      "reference": "private-local:generation-apply.json",
+      "sha256": "2f2d0734bc2bfb2eff5e0ceb8b20120c181a97868bddf7a3489b03511f58ec9a"
+    },
+    {
+      "reference": "private-local:workspace-strict-check.json",
+      "sha256": "8c4d9413cdf1e7dc1f60a8dfc6587cb25ef59180626e4588c90bb1b839bf09e5"
+    },
+    {
+      "reference": "private-local:generation-check-final.json",
+      "sha256": "0a4e4f7b3151e9ae98591e777ac3016688ef5619c724e499968f80b9983b9387"
+    },
+    {
+      "reference": "private-local:detached-check.json",
+      "sha256": "e9bd1fe465c919278e6b6fc2040d55bde4c714d67dc31a8a6412c4b6b1b0816d"
+    },
+    {
+      "reference": "private-local:regeneration-plan.json",
+      "sha256": "0ed5762104fad3e6d61a62d4be1ed0a7c48883fd6c534364415d78c11df8588c"
+    },
+    {
+      "reference": "private-local:application-validation.json",
+      "sha256": "bc73b8018bcd80bb4b18befb8ca8a7e2aa1f9d1e922c784aa3eb9cbfc9f80ec0"
+    },
+    {
+      "reference": "private-local:mori-verify.stdout",
+      "sha256": "5f46fc6d67a55ab408fa5539cce623c98cf95a5fec6dab520684e0d30e9ad0fe"
+    },
+    {
+      "reference": "private-local:mori-verify-web.stdout",
+      "sha256": "4db76c9715e745dd29a55da1e7de7fc82e29ad0cd716a0723b2c27f916e250d0"
+    },
+    {
+      "reference": "private-local:codex-discovery.json",
+      "sha256": "db9f221319cfdbb851978f947376ec5e247840669d4cedec0963bedd203151a8"
+    },
+    {
+      "reference": "private-local:doctor-final.json",
+      "sha256": "c0fde57f653dcd5a2f0fb6f505e7f72b69ad9c203b5629de99b58ec0a091743b"
+    },
+    {
+      "reference": "private-local:preservation-final.json",
+      "sha256": "fe19c1233c6d71f9526f8000280fec60ee9c9fe5c869cb49f9bd54e190c102b2"
+    },
+    {
+      "reference": "private-local:task-check.stdout",
+      "sha256": "7b26481e292cc0f8a36a81963ac3ca89c8ab455605140fb9f194b1a978814629"
+    },
+    {
+      "reference": "private-local:task-check.stderr",
+      "sha256": "d4ce2095b49408fb0109db05e3994843904a1fe36e6c91ac8f226d2b8fe5d09b"
+    },
+    {
+      "reference": "private-local:kit-unit-tests-final.log",
+      "sha256": "d649ba89cea838549cd8bc3f9a8390bd292058f794487a8a77e490ca2d9b86a2"
+    },
+    {
+      "reference": "private-local:kit-unit-tests-initial.log",
+      "sha256": "c1b576e96c8663251427261a57e7d873448164e829d9464241183f302c1cd42c"
+    }
+  ]
+}

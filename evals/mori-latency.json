@@ -1,0 +1,842 @@
+{
+  "schema_version": 1,
+  "kind": "local-mori-skill-latency",
+  "observed_date": "2026-11-12",
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "architecture": "arm64",
+    "os": "macOS 27.2.1",
+    "node": "24.12.0",
+    "npm": "11.6.2",
+    "python": "3.14.5"
+  },
+  "source": {
+    "project": "Mori",
+    "revision": "b04aea4f00806a08dd2b8fa43c72add45633a60e",
+    "tracked_file_count": 453,
+    "tracked_content_unchanged": true,
+    "git_status_unchanged": true,
+    "revision_unchanged": true
+  },
+  "skill_sha256": {
+    "harness-init": "1d07efd6668e2620b785158510d9d39c2ece45c4673cf89a0ea454403551f536",
+    "harness-guide": "823adf1b023c34b272ae7b6a8a6dfc50aeb4d4c4b9c5f1e2446a6b9c24a36cf3",
+    "harness-test": "61042f5f471ad64bdfaa6456d7167842e74750222ec3a8f1d1f6a4b91c638495",
+    "harness-verify-release": "c757eea54aafa7ac851cfd2492c9901aea7f20e1140fae8944332cb18592dbae"
+  },
+  "method": {
+    "helper_repetitions": 20,
+    "helper_warmups": 3,
+    "application_repetitions": 20,
+    "application_warmups": 2,
+    "processes": "fresh child process for each observation",
+    "cache": "OS caches not flushed",
+    "included_batches_serial": true,
+    "p95": "nearest rank, observation 19 of 20",
+    "agent_samples_per_workflow": 1,
+    "agent_model_version": null,
+    "agent_tokens": null,
+    "agent_cost": null,
+    "agent_interval": "first recorded action through saved result; initial dispatch not included; workflow wall time, not pure inference"
+  },
+  "agent_workflows": {
+    "harness_init": {
+      "wall_seconds": 460.939729041,
+      "helper_seconds": 0.908538914,
+      "helper_invocations": 13,
+      "phases": [
+        {
+          "name": "Instruction and initial source inspection",
+          "start_offset_seconds": 0,
+          "end_offset_seconds": 125.3268735,
+          "duration_seconds": 125.3268735
+        },
+        {
+          "name": "Scope, discovery and registry",
+          "start_offset_seconds": 125.3268735,
+          "end_offset_seconds": 161.004618,
+          "duration_seconds": 35.67774449999999
+        },
+        {
+          "name": "Final source analysis and specification",
+          "start_offset_seconds": 161.004618,
+          "end_offset_seconds": 230.609666916,
+          "duration_seconds": 69.60504891600002
+        },
+        {
+          "name": "Generation and explicit document review",
+          "start_offset_seconds": 230.609666916,
+          "end_offset_seconds": 337.824788333,
+          "duration_seconds": 107.215121417
+        },
+        {
+          "name": "Required local and standalone checks",
+          "start_offset_seconds": 337.824788333,
+          "end_offset_seconds": 338.060240666,
+          "duration_seconds": 0.235452333000012
+        },
+        {
+          "name": "Preservation, status and reporting",
+          "start_offset_seconds": 338.060240666,
+          "end_offset_seconds": 460.939729041,
+          "duration_seconds": 122.879488375
+        }
+      ],
+      "outcome": "passed with unsupported Swift command statically pending"
+    },
+    "guide_and_test": {
+      "wall_seconds": 354.091011208,
+      "routing_seconds": 127.540753625,
+      "test_phase_seconds": 140.966135417,
+      "test_process_seconds": 2.7244179170000002,
+      "outcome": "Web validation passed; quick verification stopped for absent formatter dependencies in snapshot"
+    }
+  },
+  "helper_stages": [
+    {
+      "stage": "node-startup",
+      "first_observed_ms": 10.903333000000032,
+      "statistics": {
+        "n": 20,
+        "min_ms": 9.81008300000002,
+        "median_ms": 9.935021000000006,
+        "p95_ms": 10.14425,
+        "max_ms": 10.706250000000011,
+        "mean_ms": 9.993795750000013
+      },
+      "sample_ms": [
+        9.940875000000005,
+        10.706250000000011,
+        10.14425,
+        10.068416000000013,
+        9.960833000000036,
+        9.871375,
+        9.929167000000007,
+        10.074542000000008,
+        10.110707999999988,
+        9.82208300000002,
+        9.857416,
+        9.860292000000015,
+        9.892250000000047,
+        10.117125000000044,
+        9.84616600000004,
+        9.887666999999965,
+        9.81008300000002,
+        9.860500000000002,
+        10.006582999999978,
+        10.109334000000047
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "onboarding-plan",
+      "first_observed_ms": 21.032375000000002,
+      "statistics": {
+        "n": 20,
+        "min_ms": 20.636333000000036,
+        "median_ms": 21.197416999999973,
+        "p95_ms": 21.57400000000007,
+        "max_ms": 22.332874999999945,
+        "mean_ms": 21.266437500000006
+      },
+      "sample_ms": [
+        21.53645800000004,
+        21.13575000000003,
+        22.332874999999945,
+        21.38141600000006,
+        21.097499999999968,
+        21.173584000000005,
+        21.22124999999994,
+        21.089750000000095,
+        21.57400000000007,
+        21.1183749999999,
+        21.272249999999985,
+        21.042291999999975,
+        21.318457999999964,
+        21.414709000000016,
+        21.138958000000002,
+        21.159417000000076,
+        21.292542000000026,
+        21.238249999999994,
+        21.154583000000002,
+        20.636333000000036
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": "planned",
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "discover-original-checkout",
+      "first_observed_ms": 58.58354200000008,
+      "statistics": {
+        "n": 20,
+        "min_ms": 55.36787500000014,
+        "median_ms": 56.824437500000045,
+        "p95_ms": 59.20070800000008,
+        "max_ms": 60.53016700000012,
+        "mean_ms": 57.252429250000034
+      },
+      "sample_ms": [
+        59.20070800000008,
+        60.53016700000012,
+        56.589750000000095,
+        57.46970800000008,
+        55.61912499999994,
+        57.205917,
+        57.91554199999996,
+        55.94658299999992,
+        56.44704200000001,
+        55.36787500000014,
+        56.64133300000003,
+        56.618167000000085,
+        57.00754200000006,
+        57.97229200000015,
+        58.339292000000114,
+        55.87287500000002,
+        55.96408399999973,
+        59.09245800000008,
+        56.528499999999894,
+        58.71962500000018
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "analyze-original-checkout",
+      "first_observed_ms": 76.06120899999996,
+      "statistics": {
+        "n": 20,
+        "min_ms": 76.7297080000003,
+        "median_ms": 78.14614600000004,
+        "p95_ms": 80.18183299999964,
+        "max_ms": 89.33937499999956,
+        "mean_ms": 78.92747699999998
+      },
+      "sample_ms": [
+        78.23854200000005,
+        77.3896249999998,
+        78.82216700000026,
+        76.7297080000003,
+        77.85875000000033,
+        78.57112499999994,
+        77.66491700000006,
+        77.986625,
+        79.75104099999999,
+        78.96454099999983,
+        79.7309580000001,
+        78.99424999999974,
+        78.05375000000004,
+        77.51616699999977,
+        76.9644159999998,
+        77.83637499999986,
+        78.01858300000004,
+        79.93679200000042,
+        80.18183299999964,
+        89.33937499999956
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": 24,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "check-original-local-sources",
+      "first_observed_ms": 97.46645799999988,
+      "statistics": {
+        "n": 20,
+        "min_ms": 77.45874999999978,
+        "median_ms": 81.27314599999954,
+        "p95_ms": 82.61899999999969,
+        "max_ms": 82.89599999999973,
+        "mean_ms": 81.20656244999982
+      },
+      "sample_ms": [
+        80.93724999999995,
+        81.07779200000004,
+        80.74537499999951,
+        81.24912499999937,
+        81.70783299999948,
+        81.29716699999972,
+        80.95045800000025,
+        80.56158400000004,
+        82.89599999999973,
+        82.61899999999969,
+        77.45874999999978,
+        82.18520799999988,
+        80.54579099999955,
+        81.4477079999997,
+        81.92695800000001,
+        81.77937500000007,
+        81.41816600000038,
+        81.5547919999999,
+        80.90687499999967,
+        80.86604199999965
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "generation-preview",
+      "first_observed_ms": 31.637791000000107,
+      "statistics": {
+        "n": 20,
+        "min_ms": 30.431624999999258,
+        "median_ms": 30.966916500000025,
+        "p95_ms": 31.679957999999715,
+        "max_ms": 32.66125000000011,
+        "mean_ms": 31.046849950000023
+      },
+      "sample_ms": [
+        31.679957999999715,
+        31.15916600000037,
+        30.92150000000038,
+        30.97437499999978,
+        30.758208999999624,
+        30.79229100000066,
+        30.765416999999616,
+        30.799457999999504,
+        32.66125000000011,
+        30.85699999999997,
+        31.181667000000743,
+        30.431624999999258,
+        31.16766699999971,
+        31.303917000000183,
+        31.119959000000563,
+        30.959458000000268,
+        31.114540999999917,
+        30.646374999999352,
+        30.65062500000022,
+        30.99254100000053
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": null,
+        "generated_files": 5,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "generation-apply-no-change",
+      "first_observed_ms": 38.3080829999999,
+      "statistics": {
+        "n": 20,
+        "min_ms": 38.19445900000028,
+        "median_ms": 38.836458499999935,
+        "p95_ms": 40.11604100000022,
+        "max_ms": 42.69462500000009,
+        "mean_ms": 39.06102085000011
+      },
+      "sample_ms": [
+        39.264124999999694,
+        38.435207999999875,
+        38.85587499999929,
+        38.956583999999566,
+        40.11604100000022,
+        42.69462500000009,
+        39.48649999999998,
+        38.73170800000025,
+        38.730749999999716,
+        38.54187499999989,
+        38.19445900000028,
+        38.53454099999999,
+        38.91504200000054,
+        38.87091700000019,
+        39.120458000000326,
+        38.81704200000058,
+        38.97375000000011,
+        38.675584000000526,
+        38.582375000000866,
+        38.72295800000029
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": "applied",
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "artifact-check-local",
+      "first_observed_ms": 35.730458,
+      "statistics": {
+        "n": 20,
+        "min_ms": 34.7712500000016,
+        "median_ms": 35.282374999999774,
+        "p95_ms": 36.67029100000036,
+        "max_ms": 36.79479100000026,
+        "mean_ms": 35.374497850000125
+      },
+      "sample_ms": [
+        35.333291999999346,
+        35.12724999999955,
+        35.17958300000009,
+        34.815583999999944,
+        35.17420800000036,
+        34.808500000001004,
+        35.71129200000178,
+        35.33116699999846,
+        35.00029199999881,
+        35.10008299999936,
+        35.56908300000032,
+        36.79479100000026,
+        35.557042000000365,
+        35.117457999998805,
+        34.7712500000016,
+        36.67029100000036,
+        35.444541000000754,
+        35.39925000000039,
+        35.351416999999856,
+        35.23358300000109
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": "passed",
+        "inventory_sources": null,
+        "generated_files": 5,
+        "pending_items": 1
+      }
+    },
+    {
+      "stage": "detached-artifact-check",
+      "first_observed_ms": 40.03658399999949,
+      "statistics": {
+        "n": 20,
+        "min_ms": 34.382417000000714,
+        "median_ms": 34.68681250000009,
+        "p95_ms": 35.27124999999978,
+        "max_ms": 36.7165410000016,
+        "mean_ms": 34.83065215000006
+      },
+      "sample_ms": [
+        34.4599589999998,
+        34.98804199999904,
+        34.70520800000122,
+        34.6363339999989,
+        34.91387500000019,
+        34.66841699999895,
+        34.81220800000119,
+        35.26416699999936,
+        34.410167,
+        35.27124999999978,
+        34.76866599999994,
+        34.50841700000092,
+        34.488292,
+        36.7165410000016,
+        34.56566699999894,
+        34.53387499999917,
+        34.71729100000084,
+        35.22149999999965,
+        34.382417000000714,
+        34.58075000000099
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": "passed",
+        "inventory_sources": null,
+        "generated_files": 5,
+        "pending_items": 1
+      }
+    },
+    {
+      "stage": "source-impact",
+      "first_observed_ms": 27.55266699999993,
+      "statistics": {
+        "n": 20,
+        "min_ms": 26.872083999998722,
+        "median_ms": 27.17450000000099,
+        "p95_ms": 27.40954199999942,
+        "max_ms": 27.4775410000002,
+        "mean_ms": 27.18244999999979
+      },
+      "sample_ms": [
+        27.124541999999565,
+        27.02758299999914,
+        27.324499999998807,
+        26.872083999998722,
+        27.140709000001152,
+        27.367707999999766,
+        27.378833999999188,
+        27.309583000000202,
+        26.915790999999444,
+        27.02612500000032,
+        27.308999999999287,
+        27.4775410000002,
+        27.218166999999085,
+        27.316749999999956,
+        27.08404200000041,
+        27.208291000000827,
+        27.10687500000131,
+        26.993207999999868,
+        27.038124999999127,
+        27.40954199999942
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "status": null,
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "doctor-inspection",
+      "first_observed_ms": 36.21991600000001,
+      "statistics": {
+        "n": 20,
+        "min_ms": 35.527374999999665,
+        "median_ms": 36.282208500000706,
+        "p95_ms": 36.866541999999754,
+        "max_ms": 37.20624999999927,
+        "mean_ms": 36.30840009999984
+      },
+      "sample_ms": [
+        36.21149999999943,
+        35.98725000000013,
+        36.866541999999754,
+        36.32991700000093,
+        36.49358300000131,
+        37.20624999999927,
+        36.51900000000023,
+        36.519374999999854,
+        36.22220799999923,
+        35.527374999999665,
+        36.10900000000038,
+        36.201084000000264,
+        36.23450000000048,
+        35.79145799999969,
+        36.68999999999869,
+        36.49649999999929,
+        35.829625000000306,
+        36.54579199999898,
+        36.33345899999949,
+        36.05358399999932
+      ],
+      "expected_exit": 2,
+      "scope": {
+        "status": "pending",
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "release-evidence-missing-observations",
+      "first_observed_ms": 22.460917000000336,
+      "statistics": {
+        "n": 20,
+        "min_ms": 21.481125000000247,
+        "median_ms": 22.01081250000061,
+        "p95_ms": 22.63325000000077,
+        "max_ms": 23.662333000000217,
+        "mean_ms": 22.101116600000204
+      },
+      "sample_ms": [
+        22.63325000000077,
+        21.642084000000978,
+        22.153125000000728,
+        21.481125000000247,
+        21.85712500000045,
+        21.785291000000143,
+        21.824249999999665,
+        22.441208000000188,
+        23.662333000000217,
+        22.193209000000934,
+        21.979457999999795,
+        21.99366700000064,
+        21.911667000000307,
+        22.02795800000058,
+        22.229583000000275,
+        22.164957999999388,
+        21.830916999999317,
+        22.35954099999981,
+        22.177332999999635,
+        21.67425000000003
+      ],
+      "expected_exit": 2,
+      "scope": {
+        "status": "pending",
+        "inventory_sources": null,
+        "generated_files": null,
+        "pending_items": null
+      }
+    },
+    {
+      "stage": "strict-reviewed-workspace",
+      "first_observed_ms": 97.343458,
+      "statistics": {
+        "n": 20,
+        "min_ms": 90.63954100000001,
+        "median_ms": 93.24772899999999,
+        "p95_ms": 95.91029200000003,
+        "max_ms": 97.01454199999989,
+        "mean_ms": 93.59128130000002
+      },
+      "sample_ms": [
+        93.89554200000003,
+        91.50508299999996,
+        90.63954100000001,
+        93.19237499999997,
+        92.35974999999996,
+        94.64429200000006,
+        92.94333300000017,
+        95.91029200000003,
+        92.72387499999991,
+        94.37137499999994,
+        94.18437500000005,
+        93.30308300000002,
+        92.72762500000022,
+        94.38758400000006,
+        93.18624999999997,
+        94.67733399999997,
+        92.89079200000015,
+        94.29662499999995,
+        97.01454199999989,
+        92.97195800000009
+      ],
+      "expected_exit": 0,
+      "scope": {
+        "inventory_sources": 46,
+        "document_reviews": 7
+      }
+    }
+  ],
+  "application_stages": [
+    {
+      "stage": "build-public-web",
+      "first_observed_ms": 118.24916600000002,
+      "statistics": {
+        "n": 20,
+        "min_ms": 110.12979100000007,
+        "median_ms": 111.36645799999997,
+        "p95_ms": 115.82504200000005,
+        "max_ms": 123.12687500000015
+      },
+      "sample_ms": [
+        110.702834,
+        110.51337500000005,
+        111.4358749999999,
+        110.33387500000003,
+        111.29704100000004,
+        111.59258299999999,
+        115.82504200000005,
+        111.7177499999998,
+        112.99416599999995,
+        111.188625,
+        110.12979100000007,
+        111.50883299999987,
+        113.87200000000007,
+        111.636708,
+        110.43895799999996,
+        123.12687500000015,
+        110.81995800000004,
+        112.41474999999991,
+        110.65583400000014,
+        111.02120800000012
+      ],
+      "expected_exit": 0,
+      "scope": {}
+    },
+    {
+      "stage": "mori-harness-task-check",
+      "first_observed_ms": 21.662500000000364,
+      "statistics": {
+        "n": 20,
+        "min_ms": 20.677291999999852,
+        "median_ms": 21.001021000000037,
+        "p95_ms": 21.330875000000106,
+        "max_ms": 21.41891600000008
+      },
+      "sample_ms": [
+        21.119583000000148,
+        21.10458400000016,
+        20.891415999999936,
+        21.058708000000024,
+        20.82354200000009,
+        21.17241600000034,
+        21.41891600000008,
+        21.330875000000106,
+        20.77975000000015,
+        20.677291999999852,
+        21.080415999999786,
+        21.007333000000017,
+        20.968791999999667,
+        20.881916999999703,
+        20.880083999999897,
+        20.952958999999737,
+        20.994709000000057,
+        21.330124999999953,
+        20.88712499999974,
+        21.068667000000005
+      ],
+      "expected_exit": 0,
+      "scope": {}
+    },
+    {
+      "stage": "mori-application-tests",
+      "first_observed_ms": 461.034083,
+      "statistics": {
+        "n": 20,
+        "min_ms": 456.92695899999944,
+        "median_ms": 464.15572950000023,
+        "p95_ms": 472.56875000000036,
+        "max_ms": 485.86912500000017
+      },
+      "sample_ms": [
+        485.86912500000017,
+        460.7527909999999,
+        456.92695899999944,
+        458.0676250000006,
+        457.30912499999977,
+        469.22120800000084,
+        464.4109579999995,
+        464.80070800000067,
+        472.56875000000036,
+        468.6005830000013,
+        464.46129199999996,
+        462.40020800000093,
+        464.3824590000004,
+        460.8105830000004,
+        461.54062499999964,
+        467.6120840000003,
+        463.9290000000001,
+        462.544249999999,
+        471.3280829999985,
+        459.13916600000084
+      ],
+      "expected_exit": 0,
+      "scope": {}
+    },
+    {
+      "stage": "mori-javascript-syntax",
+      "first_observed_ms": 766.8735419999994,
+      "statistics": {
+        "n": 20,
+        "min_ms": 758.3493750000016,
+        "median_ms": 764.0350209999997,
+        "p95_ms": 772.5693329999995,
+        "max_ms": 796.5688329999975
+      },
+      "sample_ms": [
+        770.0700419999976,
+        762.6703750000015,
+        758.3493750000016,
+        765.7324169999993,
+        760.6086670000004,
+        772.5693329999995,
+        764.833458000001,
+        766.5972079999992,
+        758.518,
+        763.9357090000012,
+        760.1674999999996,
+        796.5688329999975,
+        766.6029159999998,
+        763.179250000001,
+        764.1343329999982,
+        763.8345410000002,
+        771.9965829999965,
+        759.8465419999993,
+        761.5187910000022,
+        766.1171250000007
+      ],
+      "expected_exit": 0,
+      "scope": {}
+    }
+  ],
+  "initial_write_samples_ms": {
+    "workspace-initial-apply": 159.30562500000002,
+    "generation-apply": 78.292417,
+    "workspace-review-apply": 148.094542
+  },
+  "correctness": {
+    "documentation_topics": 4,
+    "generation_sources": 32,
+    "review_inventory_sources": 46,
+    "current_document_reviews": 7,
+    "artifact_and_strict_checks": "passed",
+    "web_tests": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "javascript_syntax_files": 39,
+    "python_syntax_files": 10,
+    "quick_verification_retry": {
+      "exit_code": 0,
+      "seconds": 1.9017841250024503,
+      "existing_local_tools_reused": true,
+      "temporary_links_removed": true
+    },
+    "historical_tasks_preserved": 86
+  },
+  "retained_failures_and_exclusions": [
+    "Guide npm preflight rejected the same /dev/null for user and global config; distinct local empty config locations recovered it.",
+    "Quick verification initially stopped at missing snapshot-local Prettier; Ruff was also absent. Reusing existing original-checkout tools allowed a separate successful retry.",
+    "One additional strict-check timing batch overlapped the formatter retry; it is retained locally but excluded. The included strict-check batch was rerun serially."
+  ],
+  "not_run": [
+    "native application startup",
+    "Swift tests/builds",
+    "native host activation",
+    "live model/provider/account access",
+    "cloud deployment"
+  ],
+  "evidence_receipts": [
+    {
+      "local_record": "artifacts/init-timing.json",
+      "sha256": "c29f1036d929e5af9eeb1de791c50d2586f5cf4998a915d3ef8602d52cc6fa18"
+    },
+    {
+      "local_record": "artifacts/guide/timing.json",
+      "sha256": "793176c44b8174aa497821b61b47b614a0364923326420323be98afe76ec5254"
+    },
+    {
+      "local_record": "artifacts/helper-latency.local.json",
+      "sha256": "f3baee4d1db655bbb336659a8b9821503719f8a926ae511d592e03822504c7ee"
+    },
+    {
+      "local_record": "artifacts/helper-latency-extra.local.json",
+      "sha256": "2076e6dcd17a4d6a0e5c4d0e7734e375b67b082b5a1eeb3bdf6ac60de4585ca7"
+    },
+    {
+      "local_record": "artifacts/helper-latency-extra-overlap-excluded.local.json",
+      "sha256": "64b0671d02163d5ce83d331b170b8c64afd731cfc6aec1fad8278347f1d3d805"
+    },
+    {
+      "local_record": "artifacts/application-latency.local.json",
+      "sha256": "0b1ae02115483c4f2beaf6f8482556d87761b8622e6d57409c896c9e2d45cbdf"
+    },
+    {
+      "local_record": "artifacts/quick-verify-existing-tools.json",
+      "sha256": "8c31eb104da79d98881ada76ab6b9808b56ac62dff53d3742f63d4715fe5babe"
+    },
+    {
+      "local_record": "artifacts/source-preservation-final.json",
+      "sha256": "602258ebd719ec399547a37042aabdaac215b13305e19dd0d8f1676af6d76d6c"
+    }
+  ]
+}

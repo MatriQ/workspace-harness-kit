@@ -1,0 +1,275 @@
+{
+  "schema_version": 1,
+  "release": "synthetic-release",
+  "capability": "greeting",
+  "scope": {
+    "target": {
+      "environment": "local",
+      "identity": "synthetic/greeting"
+    },
+    "max_age_seconds": 300,
+    "components": [
+      {
+        "id": "api",
+        "artifact": {
+          "kind": "git_commit",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "required_checks": [
+          "deployment",
+          "version",
+          "technical"
+        ],
+        "not_applicable": {
+          "business": "Covered by the cross-component greeting journey"
+        },
+        "criteria": {
+          "deployment": "The selected local fixture was started",
+          "version": "The independently observed revision matches",
+          "technical": "The component responds to its representative probe"
+        }
+      },
+      {
+        "id": "client",
+        "artifact": {
+          "kind": "git_commit",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "required_checks": [
+          "deployment",
+          "version",
+          "technical"
+        ],
+        "not_applicable": {
+          "business": "Covered by the cross-component greeting journey"
+        },
+        "criteria": {
+          "deployment": "The selected local fixture was started",
+          "version": "The independently observed revision matches",
+          "technical": "The component responds to its representative probe"
+        }
+      },
+      {
+        "id": "worker",
+        "artifact": {
+          "kind": "git_commit",
+          "value": "cccccccccccccccccccccccccccccccccccccccc"
+        },
+        "required_checks": [
+          "deployment",
+          "version",
+          "technical"
+        ],
+        "not_applicable": {
+          "business": "Covered by the cross-component greeting journey"
+        },
+        "criteria": {
+          "deployment": "The selected local fixture was started",
+          "version": "The independently observed revision matches",
+          "technical": "The component responds to its representative probe"
+        }
+      }
+    ],
+    "journeys": [
+      {
+        "id": "greeting",
+        "components": [
+          "api",
+          "client",
+          "worker"
+        ],
+        "criterion": "The client greeting is processed by the worker"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "component": "api",
+      "check": "deployment",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:api/deployment/1"
+      ]
+    },
+    {
+      "component": "api",
+      "check": "version",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:api/version/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "component": "api",
+      "check": "technical",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:api/technical/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "component": "client",
+      "check": "deployment",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:client/deployment/1"
+      ]
+    },
+    {
+      "component": "client",
+      "check": "version",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:client/version/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "component": "client",
+      "check": "technical",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:client/technical/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "component": "worker",
+      "check": "deployment",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:worker/deployment/1"
+      ]
+    },
+    {
+      "component": "worker",
+      "check": "version",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:worker/version/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "cccccccccccccccccccccccccccccccccccccccc"
+      }
+    },
+    {
+      "component": "worker",
+      "check": "technical",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Observed the expected fixture behavior",
+      "evidence": [
+        "fixture:worker/technical/1"
+      ],
+      "artifact": {
+        "kind": "git_commit",
+        "value": "cccccccccccccccccccccccccccccccccccccccc"
+      }
+    },
+    {
+      "journey": "greeting",
+      "check": "business",
+      "attempt": 1,
+      "status": "passed",
+      "target": {
+        "environment": "local",
+        "identity": "synthetic/greeting"
+      },
+      "observed_at": "2026-01-01T12:00:00+00:00",
+      "summary": "Greeting was processed",
+      "evidence": [
+        "fixture:journey/1"
+      ],
+      "artifacts": {
+        "api": {
+          "kind": "git_commit",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "client": {
+          "kind": "git_commit",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "worker": {
+          "kind": "git_commit",
+          "value": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      }
+    }
+  ]
+}

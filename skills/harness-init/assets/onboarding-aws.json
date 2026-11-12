@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "language": "en",
+  "background": "A synthetic API and worker workspace. The team wants release verification and operational investigation guides in one coordinator repository.",
+  "activities": { "development": true, "testing": true, "deployment": true, "operations": true },
+  "platforms": [
+    { "id": "aws-main", "provider": "aws", "services": ["ECS", "CloudWatch"], "environments": ["staging", "production"], "access": "cli", "delivery": "github-actions", "tools": [] }
+  ],
+  "tool_policy": "inspect-only",
+  "documentation": { "placement": "coordinator", "root": "docs/harness", "entrypoint": "AGENTS.md" }
+}
