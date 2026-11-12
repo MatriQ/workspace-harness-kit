@@ -16,20 +16,56 @@
 | [harness-test](skills/harness-test/SKILL.md) | 按范围选择并执行跨组件检查，记录实际测试的环境、版本与结果。 |
 | [harness-verify-release](skills/harness-verify-release/SKILL.md) | 评估发布前就绪状态，核对部署执行、实测运行制品、技术烟测和业务验收。 |
 
-## 快速开始
+## 快捷安装
 
-把完整 Skill 文件夹安装到 Agent 配置的技能目录，也可以让 Agent 直接读取此检出中的对应 `SKILL.md`。辅助工具需要 Node.js 24 或更新版本，工作区发现还需要 Git。仓库已包含可直接运行的 `.mjs` 产物，无需 npm 安装或 TypeScript 编译器。本地启动与验证还需要目标项目要求的工具。
+适用于 macOS / Linux 上的本地 Codex 或 Claude Code。先安装 **Node.js 24+、Git 和 GitHub CLI（`gh`）**。仓库为私有仓库，当前 GitHub 账号需要有访问权限；未登录时先运行 `gh auth login`。仓库已包含可直接运行的辅助工具，无需 `npm install` 或构建。
 
-使用版本化安装时，将 `SKILLS_DIR` 设为 Agent 配置的技能目录，`INSTALL_PLAN` 设为本地临时文件：
+**1. 首次克隆。** 已有本地检出时，跳过克隆，后续命令使用已有目录。
 
 ```sh
-node scripts/install.mjs --version
-node scripts/install.mjs plan --destination "$SKILLS_DIR" > "$INSTALL_PLAN"
-node scripts/install.mjs apply --plan "$INSTALL_PLAN"
-node scripts/install.mjs check --destination "$SKILLS_DIR"
+gh repo clone MatriQ/workspace-harness-kit "$HOME/.local/share/workspace-harness-kit"
 ```
 
-应用前查看计划。添加 `--skill harness-init` 可只安装指定 Skill。升级时从目标版本的检出重新运行 plan/apply。安装器会复制支持文件、记录版本与哈希，并拒绝覆盖非本工具管理的目录或本地修改；明确处理冲突后重新生成计划。它不会修改 Agent 设置或安装全局依赖。详见[安装与兼容性](docs/installation.md)。
+**2. 选择 Agent，预览安装。** 以下命令块在同一个终端中执行。默认把全部五个 Skills 安装到 Codex 用户目录，供所有项目使用；使用 Claude Code 时，按注释替换 `SKILLS_DIR` 赋值。
+
+```sh
+cd "$HOME/.local/share/workspace-harness-kit"
+SKILLS_DIR="$HOME/.agents/skills"
+# 改为 Claude Code 时：SKILLS_DIR="$HOME/.claude/skills"
+INSTALL_PLAN="$(mktemp)"
+node scripts/install.mjs plan --destination "$SKILLS_DIR" > "$INSTALL_PLAN"
+cat "$INSTALL_PLAN"
+```
+
+上述目录分别来自 [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) 和 [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load) 的用户级 Skill 约定。两者都使用时，对两个目标目录分别执行第 2–3 步。只需要初始化功能时，在 `plan` 命令后添加 `--skill harness-init`。
+
+**3. 安装并检查。** 查看计划中的目标目录和 Skills；`conflicts` 为空时执行：
+
+```sh
+node scripts/install.mjs apply --plan "$INSTALL_PLAN" &&
+  node scripts/install.mjs check --destination "$SKILLS_DIR"
+```
+
+预期输出已安装的 Skill 版本及 `"problems": []`。安装器复制完整目录、记录版本与哈希，并保护非本工具管理的目录和本地修改；遇到冲突时先处理，再重新生成计划。详见[安装与排错](docs/installation.md)。
+
+**4. 初始化你的项目。** 在需要初始化的目标仓库中开启新的 Agent 会话，发送：
+
+```text
+使用 harness-init 初始化当前仓库，覆盖开发、测试和本地启动。
+使用 centralized 布局，请让我选择文档语言和目标 Agent。
+```
+
+也可以在 Codex 中用 `$harness-init`、在 Claude Code 中用 `/harness-init` 显式调用。这一步才会生成项目的 `.harness/` 和 `AGENTS.md`；选择 Claude Code 时还会生成 `CLAUDE.md -> AGENTS.md` 软链。仅安装 Kit 不会初始化项目。本地启动与验证还需要项目自身要求的工具。
+
+**更新：** 拉取最新检出后，使用原目标目录重复第 2–3 步：
+
+```sh
+cd "$HOME/.local/share/workspace-harness-kit" && git pull --ff-only
+```
+
+不用 `gh` 的 SSH 克隆、固定版本、项目级安装及直接读取 Skill 的方法，见[其他安装方式](docs/installation.md#installation-options)。
+
+## 快速开始
 
 1. 在空目录、单个 Git 仓库或包含多个仓库的父目录中开始。
 2. 对 Agent 说：**「在当前仓库使用 harness-init，初始化完整的 Codex 和 Claude Code 工作环境。根据源码生成项目工作流、命令、子代理、规则和指南，覆盖开发与测试，按需询问部署和运维需求。」**

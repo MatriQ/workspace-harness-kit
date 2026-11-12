@@ -16,20 +16,56 @@ Start from an empty directory, adopt an existing repository, or bring several re
 | [harness-test](skills/harness-test/SKILL.md) | Select and run scoped checks across components, then record the tested environment, versions, and outcomes. |
 | [harness-verify-release](skills/harness-verify-release/SKILL.md) | Evaluate pre-release readiness; verify deployment execution, the observed running artifact, technical smoke checks, and business acceptance. |
 
-## Getting started
+## Quick install
 
-Install complete Skill folders in your agent's configured skills directory, or ask the agent to read the corresponding `SKILL.md` directly from this checkout. Helpers require Node.js 24 or newer; workspace discovery also requires Git. The committed `.mjs` bundles run without npm installation or a TypeScript compiler. Local setup and validation also require the target project's tools.
+For local Codex or Claude Code on macOS / Linux, have **Node.js 24+, Git and GitHub CLI (`gh`)** installed. The repository is private: your GitHub account needs access. Run `gh auth login` if you have not signed in. The committed helpers run directly; no `npm install` or build is needed.
 
-For a versioned installation, set `SKILLS_DIR` to the agent's configured directory and `INSTALL_PLAN` to a local temporary file:
+**1. Clone once.** Already have a checkout? Use that directory in the following steps and skip cloning.
 
 ```sh
-node scripts/install.mjs --version
-node scripts/install.mjs plan --destination "$SKILLS_DIR" > "$INSTALL_PLAN"
-node scripts/install.mjs apply --plan "$INSTALL_PLAN"
-node scripts/install.mjs check --destination "$SKILLS_DIR"
+gh repo clone MatriQ/workspace-harness-kit "$HOME/.local/share/workspace-harness-kit"
 ```
 
-Review the plan before applying. Add `--skill harness-init` to install a subset. Re-run plan/apply from the desired checkout to upgrade. The installer copies supporting files, records versions and hashes, and refuses to overwrite unowned folders or local modifications. Reconcile those conflicts explicitly and create a new plan. It does not change agent settings or install global dependencies. See [installation and compatibility](docs/installation.md).
+**2. Choose your agent and preview the installation.** Run the following blocks in the same terminal. The default below installs all five Skills for Codex across your projects; for Claude Code, replace the `SKILLS_DIR` assignment as shown.
+
+```sh
+cd "$HOME/.local/share/workspace-harness-kit"
+SKILLS_DIR="$HOME/.agents/skills"
+# For Claude Code instead: SKILLS_DIR="$HOME/.claude/skills"
+INSTALL_PLAN="$(mktemp)"
+node scripts/install.mjs plan --destination "$SKILLS_DIR" > "$INSTALL_PLAN"
+cat "$INSTALL_PLAN"
+```
+
+These are the documented user-level locations for [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load). To use both agents, repeat steps 2–3 for each destination. Add `--skill harness-init` to the `plan` command to install only initialization.
+
+**3. Apply and verify.** Review the destination and selected Skills in the plan. When `conflicts` is empty, run:
+
+```sh
+node scripts/install.mjs apply --plan "$INSTALL_PLAN" &&
+  node scripts/install.mjs check --destination "$SKILLS_DIR"
+```
+
+Expect the installed Skill versions and `"problems": []`. The installer copies complete folders, records versions and hashes, and protects unowned folders and local edits. Resolve reported conflicts before making a fresh plan. See [installation and troubleshooting](docs/installation.md).
+
+**4. Initialize your project.** Open a new agent session in the repository you want to initialize, then send:
+
+```text
+Use harness-init to initialize this repository for development, testing and local startup.
+Use the centralized layout; ask me to choose the documentation language and agent targets.
+```
+
+You can invoke it explicitly with `$harness-init` in Codex or `/harness-init` in Claude Code. This step creates the project's `.harness/` and `AGENTS.md`, plus `CLAUDE.md -> AGENTS.md` when Claude Code is selected. Installing the Kit alone does not initialize a project. Local setup and validation also need the project's own tools.
+
+**Update:** pull the latest checkout, then repeat steps 2–3 with the same destination:
+
+```sh
+cd "$HOME/.local/share/workspace-harness-kit" && git pull --ff-only
+```
+
+For SSH cloning without `gh`, version pinning, project-local installation, or reading a Skill directly without installing it, see [installation options](docs/installation.md#installation-options).
+
+## Getting started
 
 1. Start in an empty directory, a Git checkout, or a parent directory containing several checkouts.
 2. Ask: **“Use harness-init in this repository to initialize a complete Codex and Claude Code environment. Derive project workflows, commands, agents, rules and guides from its sources. Cover development and testing; ask about deployment and operations when needed.”**
