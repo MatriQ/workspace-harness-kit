@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { equal, fullMatch, isObject, json } from '../core/json.js';
 import { expandUser, fileHash, hash, isWithin, readJson, resolvePath, stat } from './files.js';
@@ -145,4 +146,35 @@ export function checkInstallation(destination: string) {
   const problems: string[] = [];
   for (const [name, entry] of Object.entries(installed.skills)) if (!equal(inventory(path.join(destination, name)), entry.files)) problems.push(`${name}: files differ from the installed version`);
   return { skills: Object.fromEntries(Object.entries(installed.skills).map(([name, item]) => [name, item.version])), problems };
+}
+
+export interface SetupOptions {
+  agent?: 'codex' | 'claude' | 'both';
+  destination?: string;
+  skills?: string[];
+  dryRun?: boolean;
+}
+
+/** Install the selected Skills using the same ownership and recovery contract as plan/apply. */
+export function setupInstallation(sourceRoot: string, options: SetupOptions = {}, userDirectory = os.homedir()) {
+  requireInstall(options.agent === undefined || ['codex', 'claude', 'both'].includes(options.agent), 'Expected agent codex, claude or both');
+  requireInstall(options.destination === undefined || options.agent === undefined, 'Use either --agent or --destination, not both');
+  const agent = options.agent ?? 'codex';
+  const destinations = options.destination !== undefined ? [options.destination]
+    : (agent === 'both' ? ['.agents', '.claude'] : [agent === 'codex' ? '.agents' : '.claude'])
+      .map(folder => path.join(userDirectory, folder, 'skills'));
+  const installer = new Installer(sourceRoot);
+  // Resolve and inspect every target before writing; parent aliases may name the same destination.
+  const plans = [...new Map(destinations.map(destination => {
+    const plan = installer.plan(destination, options.skills);
+    return [plan.destination, plan] as const;
+  })).values()];
+  if (options.dryRun) return { dry_run: true as const, plans };
+  const conflicts = plans.flatMap(plan => plan.conflicts.map(conflict => `${plan.destination}: ${conflict}`));
+  requireInstall(!conflicts.length, conflicts.join('; '));
+  const installations = plans.map(plan => {
+    const applied = installer.apply(plan);
+    return { destination: plan.destination, ...applied, ...checkInstallation(plan.destination) };
+  });
+  return { dry_run: false as const, installations };
 }

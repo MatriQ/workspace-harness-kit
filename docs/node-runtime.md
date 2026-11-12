@@ -4,6 +4,22 @@ The 0.2.0 source package uses Node.js 24+ for all harness helpers. Source code i
 strict TypeScript; distributed commands are ESM JavaScript. `VERSION` and
 `package.json` must agree. A source version does not imply an npm publication.
 
+## Runtime choice
+
+The project retains Node for its shared core. The CLI, generated checks, hooks and
+typed library exports already share the same TypeScript implementation, and the
+committed `.mjs` bundles run directly with Node. End users do not need npm,
+development dependencies or a compiler; see [Node's ESM contract](https://nodejs.org/api/esm.html).
+
+Python would be a reasonable alternative for an environment standardized on Python
+with no Node runtime. Its standard library includes JSON, XML and filesystem tools,
+and [TOML reading from Python 3.11](https://docs.python.org/3/library/tomllib.html).
+A port would still need a supported interpreter, schema and output compatibility,
+file ownership and recovery behavior, generated runtimes, and regression coverage.
+It would also replace or bridge the current JavaScript library API. Installation
+convenience alone does not justify that migration: `install.sh` now handles source
+download, selection, installation and verification without changing the core runtime.
+
 ## Architecture
 
 | Layer | Responsibility |
@@ -54,8 +70,8 @@ npm install /path/to/workspace-harness-kit-0.2.0.tgz
 ./node_modules/.bin/whk evidence "$RECORD" --workspace "$WORKSPACE"
 ```
 
-The archive includes the complete Skills and can install them through
-`whk install plan/apply/check`. It has no runtime npm dependencies or install
+The archive includes `install.sh` and the complete Skills and can install them through
+`whk install setup --agent codex` or `whk install plan/apply/check`. It has no runtime npm dependencies or install
 scripts. `check:package` installs the archive offline in a temporary consumer,
 exercises its CLI, library exports and declarations, installs Skills, removes the
 consumer, then runs the detached Skill scripts. It also generates a complete harness

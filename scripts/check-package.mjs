@@ -92,6 +92,12 @@ const invalidTargets: HarnessSpec['targets'] = ['unknown-host'];
   const destination = path.join(temporary, 'installed'), plan = path.join(temporary, 'install-plan.json');
   fs.writeFileSync(plan, run(bin, ['install', 'plan', '--destination', destination], consumer));
   run(bin, ['install', 'apply', '--plan', plan], consumer); run(bin, ['install', 'check', '--destination', destination], consumer);
+  const setup = JSON.parse(run(bin, ['install', 'setup', '--destination', destination], consumer));
+  assert.deepEqual(setup.installations[0].changed, []);
+  const bootstrap = JSON.parse(run('bash', [path.join(pkg, 'install.sh'), '--source', pkg,
+    '--destination', path.join(temporary, 'bootstrap-skills'), '--skill', 'harness-init'], consumer));
+  assert.deepEqual(bootstrap.installations[0].installed, ['harness-init']);
+  assert.deepEqual(bootstrap.installations[0].problems, []);
   const workspace = path.join(temporary, 'coordinator'); fs.mkdirSync(workspace);
   fs.writeFileSync(path.join(workspace, 'README.md'), '# Greeting services\n\nAn API, client and worker form a synthetic greeting journey. Hosted deployment is not configured. Shared-history rewrites are excluded by this synthetic team.\n');
   const harnessPlan = path.join(temporary, 'harness-plan.json');

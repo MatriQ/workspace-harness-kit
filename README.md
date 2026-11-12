@@ -18,52 +18,38 @@ Start from an empty directory, adopt an existing repository, or bring several re
 
 ## Quick install
 
-For local Codex or Claude Code on macOS / Linux, have **Node.js 24+, Git and GitHub CLI (`gh`)** installed. The repository is private: your GitHub account needs access. Run `gh auth login` if you have not signed in. The committed helpers run directly; no `npm install` or build is needed.
+For local Codex or Claude Code on macOS / Linux, install **Node.js 24+, Git and curl** first. Run one command to download the Kit, install all five Skills and verify their files. No manual clone, GitHub CLI, npm installation or build is needed.
 
-**1. Clone once.** Already have a checkout? Use that directory in the following steps and skip cloning.
-
-```sh
-gh repo clone MatriQ/workspace-harness-kit "$HOME/.local/share/workspace-harness-kit"
-```
-
-**2. Choose your agent and preview the installation.** Run the following blocks in the same terminal. The default below installs all five Skills for Codex across your projects; for Claude Code, replace the `SKILLS_DIR` assignment as shown.
+**Codex:**
 
 ```sh
-cd "$HOME/.local/share/workspace-harness-kit"
-SKILLS_DIR="$HOME/.agents/skills"
-# For Claude Code instead: SKILLS_DIR="$HOME/.claude/skills"
-INSTALL_PLAN="$(mktemp)"
-node scripts/install.mjs plan --destination "$SKILLS_DIR" > "$INSTALL_PLAN"
-cat "$INSTALL_PLAN"
+curl -fsSL https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/main/install.sh | bash
 ```
 
-These are the documented user-level locations for [Codex](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills) and [Claude Code](https://code.claude.com/docs/en/skills#choose-where-skills-load). To use both agents, repeat steps 2–3 for each destination. Add `--skill harness-init` to the `plan` command to install only initialization.
-
-**3. Apply and verify.** Review the destination and selected Skills in the plan. When `conflicts` is empty, run:
+**Claude Code:**
 
 ```sh
-node scripts/install.mjs apply --plan "$INSTALL_PLAN" &&
-  node scripts/install.mjs check --destination "$SKILLS_DIR"
+curl -fsSL https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/main/install.sh | bash -s -- --agent claude
 ```
 
-Expect the installed Skill versions and `"problems": []`. The installer copies complete folders, records versions and hashes, and protects unowned folders and local edits. Resolve reported conflicts before making a fresh plan. See [installation and troubleshooting](docs/installation.md).
+**Both agents:**
 
-**4. Initialize your project.** Open a new agent session in the repository you want to initialize, then send:
+```sh
+curl -fsSL https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/main/install.sh | bash -s -- --agent both
+```
+
+Codex Skills go to `~/.agents/skills/`; Claude Code Skills go to `~/.claude/skills/`. The installer checks every selected destination before writing, preserves unowned folders and local edits, and removes its temporary checkout. Expect `"problems": []` for each installation. **Run the same command again to update**; unchanged Skills are left intact.
+
+Add `--dry-run` after `bash -s --` to preview without installing, or `--skill harness-init` to install only initialization. To use an existing checkout, run `bash install.sh --source . --agent both` from its root. See [installation options](docs/installation.md#installation-options) for custom destinations and pinned commits.
+
+**Initialize your project:** open a new agent session in the target repository, then send:
 
 ```text
 Use harness-init to initialize this repository for development, testing and local startup.
 Use the centralized layout; ask me to choose the documentation language and agent targets.
 ```
 
-You can invoke it explicitly with `$harness-init` in Codex or `/harness-init` in Claude Code. This step creates the project's `.harness/` and `AGENTS.md`, plus `CLAUDE.md -> AGENTS.md` when Claude Code is selected. Installing the Kit alone does not initialize a project. Local setup and validation also need the project's own tools.
-
-**Update:** pull the latest checkout, then repeat steps 2–3 with the same destination:
-
-```sh
-cd "$HOME/.local/share/workspace-harness-kit" && git pull --ff-only
-```
-
-For SSH cloning without `gh`, version pinning, project-local installation, or reading a Skill directly without installing it, see [installation options](docs/installation.md#installation-options).
+Invoke it explicitly with `$harness-init` in Codex or `/harness-init` in Claude Code. Initialization creates the project's `.harness/` and `AGENTS.md`, plus `CLAUDE.md -> AGENTS.md` when Claude Code is selected. Local setup and validation also need the project's own tools.
 
 ## Getting started
 

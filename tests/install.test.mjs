@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Installer, checkInstallation, inventory, InstallError } from '../dist/install.js';
+import { Installer, checkInstallation, inventory, InstallError, setupInstallation } from '../dist/install.js';
 import { ROOT, temporary, run } from './helpers.mjs';
 
 function fixture(t) {
@@ -24,6 +24,56 @@ test('complete install is idempotent and installed bundles execute in isolation'
   const skill = path.join(destination, 'harness-verify-release');
   assert.equal(JSON.parse(run(path.join(skill, 'scripts/evidence.mjs'), [path.join(skill, 'assets/example-release.json'), '--at', '2026-01-01T12:00:00Z'], { cwd: destination, env: { PATH: path.dirname(process.execPath) } }).stdout).verdict, 'passed');
   run(path.join(destination, 'harness-init/scripts/workspace.mjs'), ['--help'], { cwd: destination, env: { PATH: path.dirname(process.execPath) } });
+});
+test('one-step setup installs both hosts, verifies them and repeats without changes', t => {
+  const root = temporary(t), userDirectory = path.join(root, 'user directory');
+  const result = setupInstallation(ROOT, { agent: 'both' }, userDirectory);
+  assert.equal(result.dry_run, false);
+  assert.deepEqual(result.installations.map(item => item.destination), ['.agents', '.claude'].map(folder => path.join(userDirectory, folder, 'skills')));
+  for (const installation of result.installations) {
+    assert.equal(installation.installed.length, 5);
+    assert.deepEqual(installation.problems, []);
+  }
+  assert.ok(setupInstallation(ROOT, { agent: 'both' }, userDirectory).installations.every(item => item.changed.length === 0));
+});
+test('one-step setup defaults to Codex and preview leaves both destinations untouched', t => {
+  const root = temporary(t), userDirectory = path.join(root, 'user');
+  const preview = setupInstallation(ROOT, { agent: 'both', dryRun: true }, userDirectory);
+  assert.equal(preview.dry_run, true); assert.equal(preview.plans.length, 2);
+  assert.equal(fs.existsSync(userDirectory), false);
+  const installed = setupInstallation(ROOT, { skills: ['harness-init'] }, userDirectory);
+  assert.deepEqual(installed.installations.map(item => item.destination), [path.join(userDirectory, '.agents/skills')]);
+  assert.deepEqual(installed.installations[0].installed, ['harness-init']);
+});
+test('a conflict in either host blocks all one-step setup writes', t => {
+  const root = temporary(t), userDirectory = path.join(root, 'user');
+  const custom = path.join(userDirectory, '.claude/skills/harness-init/SKILL.md');
+  fs.mkdirSync(path.dirname(custom), { recursive: true }); fs.writeFileSync(custom, 'User content');
+  assert.throws(() => setupInstallation(ROOT, { agent: 'both' }, userDirectory), /not owned/);
+  assert.equal(fs.existsSync(path.join(userDirectory, '.agents')), false);
+  assert.equal(fs.readFileSync(custom, 'utf8'), 'User content');
+});
+test('aliased host roots are installed once and setup rejects ambiguous options', t => {
+  const root = temporary(t), userDirectory = path.join(root, 'user');
+  fs.mkdirSync(path.join(userDirectory, '.agents'), { recursive: true });
+  fs.symlinkSync('.agents', path.join(userDirectory, '.claude'));
+  assert.equal(setupInstallation(ROOT, { agent: 'both' }, userDirectory).installations.length, 1);
+  assert.throws(() => setupInstallation(ROOT, { agent: 'claude', destination: path.join(root, 'custom') }, userDirectory), /either --agent or --destination/);
+  assert.throws(() => setupInstallation(ROOT, { agent: 'unknown' }, userDirectory), /Expected agent/);
+});
+test('setup CLI supports custom destinations, previews, conflicts and option validation', t => {
+  const root = temporary(t), destination = path.join(root, 'custom skills'), script = path.join(ROOT, 'scripts/install.mjs');
+  const args = ['setup', '--destination', destination, '--skill', 'harness-init'];
+  assert.equal(JSON.parse(run(script, [...args, '--dry-run']).stdout).dry_run, true);
+  assert.equal(fs.existsSync(destination), false);
+  const installed = JSON.parse(run(script, args).stdout);
+  assert.deepEqual(installed.installations[0].installed, ['harness-init']);
+  fs.appendFileSync(path.join(destination, 'harness-init/SKILL.md'), '\nLocal customization');
+  const preview = JSON.parse(run(script, [...args, '--dry-run'], { code: 1 }).stdout);
+  assert.equal(preview.plans[0].conflicts.length, 1);
+  assert.match(run(script, args, { code: 1 }).stderr, /local files changed/);
+  assert.match(run(script, [...args, '--agent', 'both'], { code: 2 }).stderr, /either/);
+  assert.match(run(script, ['setup', '--agent', 'unknown'], { code: 2 }).stderr, /Expected --agent/);
 });
 test('unowned destination content is preserved', t => {
   const { destination, installer } = fixture(t), folder = path.join(destination, 'harness-guide'); fs.mkdirSync(folder, { recursive: true });

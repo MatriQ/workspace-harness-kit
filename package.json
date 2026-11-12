@@ -55,6 +55,7 @@
   "files": [
     "dist",
     "skills",
+    "install.sh",
     "scripts/install.mjs",
     "VERSION",
     "LICENSE",

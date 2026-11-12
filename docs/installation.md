@@ -3,27 +3,71 @@
 Start with the copyable [quick install](../README.md#quick-install)
 ([简体中文](../README.zh-CN.md#快捷安装)). It installs all five Skills for a local
 Codex or Claude Code user, then shows how to initialize a target repository.
-It requires Node.js 24+, Git, and access to the private GitHub repository. GitHub
-CLI is used for the quick clone; an authenticated SSH clone works too. No npm
-installation or compilation is needed to use the committed helpers.
+It requires Node.js 24+, Git, curl and Bash on macOS / Linux. No GitHub CLI,
+manual clone, npm installation or compilation is needed.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/main/install.sh | bash -s -- --agent both
+```
+
+The bootstrap checks Node, fetches the selected Git revision into a temporary
+directory and invokes `scripts/install.mjs setup`. That command creates plans,
+rejects conflicts, applies the selection and checks the installed file hashes.
+It prints the source commit and installation results, then removes the temporary
+checkout on success or failure. It does not install Node, edit agent settings or
+initialize a project. Repeating the same command upgrades from the selected ref;
+unchanged Skill files are left intact.
+
+All selected destinations are checked for conflicts before the first write. Each
+destination has its own lock and recovery transaction. If a later destination
+fails during application, an earlier successful installation remains installed;
+reconcile the reported problem and rerun the same command.
 
 `VERSION` identifies this source package. It does not imply that a matching public
 release has been published. Pin the checkout or release artifact your team chooses.
 
 ## Installation options
 
-For SSH access without GitHub CLI, clone using a GitHub-authorized SSH key:
+The bootstrap accepts these options after `bash -s --`:
+
+| Option | Behavior |
+| --- | --- |
+| `--agent codex` | Install to `~/.agents/skills/`; this is the default |
+| `--agent claude` | Install to `~/.claude/skills/` |
+| `--agent both` | Install for both hosts |
+| `--destination PATH` | Install to an explicit Skill directory instead of selecting an agent |
+| `--skill NAME` | Select a Skill; repeat for several; omission selects all five |
+| `--dry-run` | Print plans without changing installed Skills; conflicts produce a nonzero exit |
+| `--ref BRANCH_OR_TAG_OR_COMMIT` | Fetch that revision instead of `main` |
+| `--source DIRECTORY` | Use a local checkout without downloading; cannot be combined with `--ref` |
+
+For example, preview only the initialization Skill for Claude Code:
 
 ```sh
-git clone git@github.com:MatriQ/workspace-harness-kit.git \
+curl -fsSL https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/main/install.sh | bash -s -- --agent claude --skill harness-init --dry-run
+```
+
+For a pinned installation, set `WHK_REF` to a real full commit ID and use it for
+both the bootstrap URL and the downloaded source:
+
+```sh
+curl -fsSL "https://raw.githubusercontent.com/MatriQ/workspace-harness-kit/$WHK_REF/install.sh" | bash -s -- --ref "$WHK_REF" --agent both
+```
+
+To inspect the source or install offline from an existing checkout:
+
+```sh
+git clone https://github.com/MatriQ/workspace-harness-kit.git \
   "$HOME/.local/share/workspace-harness-kit"
+cd "$HOME/.local/share/workspace-harness-kit"
+bash install.sh --source . --agent both
 ```
 
 If already cloned, use the existing checkout. To pin a version, check out your
 team's chosen commit before generating the installation plan; do not assume a
 tag or npm publication exists for the value in `VERSION`. Updating the checkout
-alone does not update installed Skills: rerun plan, review, apply and check from
-the chosen checkout with the same destination and Skill selection.
+alone does not update installed Skills: rerun `bash install.sh --source .` with
+the same options, or use the manual plan/apply/check workflow below.
 
 Choose one destination before running the installer from the Kit checkout:
 
@@ -41,6 +85,9 @@ with the actual absolute target path. Install separately for each host if using
 both; choose the directory supported by your installed host if it differs.
 
 ## Preview and apply
+
+For explicit plan review, run the following from a Kit checkout. This remains
+available alongside the one-command `setup` operation.
 
 The bundled Node.js installer copies complete selected Skill folders into an
 explicit destination. It creates `.workspace-harness-kit-install.json` there with
@@ -95,9 +142,9 @@ the project does not need the Kit installed to run them. See
 
 | Symptom | Next step |
 | --- | --- |
-| Clone reports missing repository or denied access | Check the repository name and access for your signed-in account. With `gh`, run `gh auth status` and sign in with `gh auth login` if needed; SSH access requires an authorized key |
+| Download or Git fetch fails | Check network access to `raw.githubusercontent.com` and `github.com`, and verify that the selected ref exists. A fetched checkout is removed after failure; installed Skills are not changed before setup |
 | `node` is missing or older than 24 | Install Node.js 24+ and verify `node --version` in the terminal used by the agent |
-| The clone directory already exists | Use that checkout, or choose a new directory; do not delete it just to repeat the instructions |
+| You already have a checkout | Run `bash install.sh --source .` from its root with the same agent or destination options |
 | The plan reports conflicts | Preserve and reconcile the listed unowned or changed files, then make a fresh plan. The installer does not provide a force-overwrite shortcut |
 | Installation checks pass but the Skill is unavailable | Confirm the installed host's discovery directory, start a new session, and look for `harness-init` in its Skill picker. Check for disabled or duplicate installations. Packaging checks do not establish host loading |
 | You want to use a Skill without installing it | Ask the agent to read the absolute path to `skills/harness-init/SKILL.md` in this checkout and follow it in the target repository; keep the complete checkout available for its relative resources |
@@ -113,6 +160,7 @@ the project does not need the Kit installed to run them. See
 | Windows | Not validated; filesystem permission and locking behavior must be tested before claiming support |
 | Direct Skill reading | All five entry points and bundled relative resources can be used directly |
 | Agent-managed Skill directory | Folder packaging is tested; choose the directory documented by your installed agent |
+| Bootstrap | Bash 3.2+ on macOS / Linux; checks Node.js 24+, uses Git for a temporary fetch, then runs the bundled installer. Downloading the bootstrap command uses curl |
 | Automatic Skill selection | Agent-specific; not established by helper or fixture tests |
 | Native harness generation | Codex and Claude Code files, source-backed documents, optional Skills/commands/agents/rules/settings/hooks and GitHub Actions gate; existing files are merged or reported as conflicts |
 | Agent activation | Native formats and direct hook behavior are checked; each installed host must still discover the selected files and establish its project/hook trust |

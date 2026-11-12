@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 // src/adapters/install.ts
 import fs2 from "node:fs";
+import os2 from "node:os";
 import path2 from "node:path";
 
 // src/core/json.ts
@@ -253,6 +254,25 @@ function checkInstallation(destination) {
   for (const [name, entry] of Object.entries(installed.skills)) if (!equal(inventory(path2.join(destination, name)), entry.files)) problems.push(`${name}: files differ from the installed version`);
   return { skills: Object.fromEntries(Object.entries(installed.skills).map(([name, item]) => [name, item.version])), problems };
 }
+function setupInstallation(sourceRoot, options = {}, userDirectory = os2.homedir()) {
+  requireInstall(options.agent === void 0 || ["codex", "claude", "both"].includes(options.agent), "Expected agent codex, claude or both");
+  requireInstall(options.destination === void 0 || options.agent === void 0, "Use either --agent or --destination, not both");
+  const agent = options.agent ?? "codex";
+  const destinations = options.destination !== void 0 ? [options.destination] : (agent === "both" ? [".agents", ".claude"] : [agent === "codex" ? ".agents" : ".claude"]).map((folder) => path2.join(userDirectory, folder, "skills"));
+  const installer = new Installer(sourceRoot);
+  const plans = [...new Map(destinations.map((destination) => {
+    const plan = installer.plan(destination, options.skills);
+    return [plan.destination, plan];
+  })).values()];
+  if (options.dryRun) return { dry_run: true, plans };
+  const conflicts = plans.flatMap((plan) => plan.conflicts.map((conflict) => `${plan.destination}: ${conflict}`));
+  requireInstall(!conflicts.length, conflicts.join("; "));
+  const installations = plans.map((plan) => {
+    const applied = installer.apply(plan);
+    return { destination: plan.destination, ...applied, ...checkInstallation(plan.destination) };
+  });
+  return { dry_run: false, installations };
+}
 
 // src/cli/args.ts
 import { parseArgs } from "node:util";
@@ -280,13 +300,15 @@ function parse(argv, specs, count = 0) {
     throw new UsageError(error.message);
   }
 }
+var stringOption = { type: "string" };
 var required = { type: "string", required: true };
+var flag = { type: "boolean" };
 var multiple = { type: "string", multiple: true };
 
 // src/cli/install.ts
 function installMain(argv, sourceRoot) {
   if (argv.includes("--help") || argv.includes("-h")) {
-    console.log("Usage: install --version | plan --destination PATH [--skill NAME] | apply --plan FILE | check --destination PATH");
+    console.log("Usage: install --version | setup [--agent codex|claude|both | --destination PATH] [--skill NAME] [--dry-run] | plan --destination PATH [--skill NAME] | apply --plan FILE | check --destination PATH");
     return 0;
   }
   try {
@@ -297,7 +319,19 @@ function installMain(argv, sourceRoot) {
     }
     const [command, ...args] = argv;
     let result, status = 0;
-    if (command === "plan") {
+    if (command === "setup") {
+      const { values } = parse(args, { agent: stringOption, destination: stringOption, skill: multiple, "dry-run": flag });
+      if (values.agent !== void 0 && !["codex", "claude", "both"].includes(values.agent)) throw new UsageError("Expected --agent codex, claude or both");
+      if (values.agent !== void 0 && values.destination !== void 0) throw new UsageError("Use either --agent or --destination, not both");
+      const setup = setupInstallation(sourceRoot, {
+        agent: values.agent,
+        destination: values.destination,
+        skills: values.skill,
+        dryRun: values["dry-run"]
+      });
+      result = setup;
+      status = Number(setup.dry_run ? setup.plans.some((plan) => plan.conflicts.length) : setup.installations.some((installation) => installation.problems.length));
+    } else if (command === "plan") {
       const { values } = parse(args, { destination: required, skill: multiple });
       const plan = installer.plan(values.destination, values.skill);
       result = plan;
@@ -310,7 +344,7 @@ function installMain(argv, sourceRoot) {
       const checked = checkInstallation(values.destination);
       result = checked;
       status = Number(checked.problems.length > 0);
-    } else throw new UsageError("Expected plan, apply, or check. Use --help for usage.");
+    } else throw new UsageError("Expected setup, plan, apply, or check. Use --help for usage.");
     console.log(JSON.stringify(result, null, 2));
     return status;
   } catch (error) {
