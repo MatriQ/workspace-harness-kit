@@ -10,7 +10,8 @@ repeat facts or approve an action already included in their request.
 | Stage | Establish | Follow-up only when needed |
 | --- | --- | --- |
 | Language | Language of generated guides and Agent instructions | Present English (`en`) and Simplified Chinese (`zh-CN`); ask when unanswered, otherwise state the confirmed choice and reuse it |
-| Background | What the system does, its users, recurring tasks and the intended harness audience | A short free-text description if absent; inspect README and existing instructions in parallel |
+| Repository role | For an empty directory or a repository without application sources, whether it will coordinate other repositories or contain future code | Offer Harness documentation hub and Monorepo before asking what application to build; reuse an explicit role and allow another setup |
+| Background | What the system does, its users, recurring tasks and the intended harness audience | Inspect available sources first. For an empty directory, follow the selected role below instead of opening with an application-description question |
 | Activities | Development, testing, deployment, operations, or a combination | “Should this harness also help with releases or operational investigation?” A declined activity remains out of scope |
 | Platforms | Hosts for the selected release/operations work | “AWS, Azure, Google Cloud, self-hosted, another platform, or several?” Do not ask this for a development-only workspace |
 | Services and environments | Actual service types, target environments, account/subscription/project boundaries, regions and existing source documents | For AWS distinguish ECS/EKS/Lambda/VMs; for Azure distinguish AKS/App Service/Functions/VMs. Kubernetes is a workload choice on a provider, not a reason to assume another cloud |
@@ -25,6 +26,72 @@ activity is selected. Unknown facts can stay unanswered while source inspection,
 local analysis and document drafting continue. Never infer “not needed” from silence.
 Show the resolved scope before changing tools or files; proceed with actions already
 authorized by the request instead of adding a separate approval loop.
+
+## Empty-directory role selection
+
+Inspect the actual target first. A directory containing only Git metadata, a short
+README or existing harness files can still have no application sources; it is not
+automatically a new application. Preserve the language choice and ask the following
+role question in the user's conversation language, with concrete selectable options:
+
+> How should this directory be used?
+>
+> 1. **Harness documentation hub** — keep shared harness documents and Agent entry
+>    points here; connect code repositories in the next step using Git URLs or
+>    local directories.
+> 2. **Monorepo** — initialize the Agent harness here; application code will be
+>    added to this same repository later.
+>
+> Another setup can be supplied as free text.
+
+Offer these as the default choices; do not silently select one. An explicit request
+such as "a docs hub for these repositories" or "a new monorepo" already answers
+the question. Reuse a saved role on refresh. Record the chosen role and known goals
+in `background`; no extra profile field is required. The planner's background
+choices are suggestions, not an extra questionnaire for a repository whose purpose
+is already established by supplied context or sources.
+
+### Harness documentation hub
+
+The next question requests the repositories to connect: Git clone URLs, local
+checkout directories, or a mixture; allow several repositories and adding them
+later. For a directory containing multiple checkouts, discover candidates and let
+the user select them. Read available repository context before asking the user to
+describe the business system or its technology stack.
+
+Reuse matching local checkouts. For a Git URL that needs a checkout, resolve a clone
+destination from the user's workspace conventions, asking only if it is ambiguous,
+then acquire it within the requested initialization scope. Keep service checkouts
+outside the documentation repository unless the user selects another arrangement;
+do not introduce nested repositories or submodules as a side effect. A URL alone
+does not establish source inspection or local execution. The workspace helper binds
+actual local checkouts; follow [selection and binding](workspace.md), retaining
+sanitized remote identity in the registry and machine paths in ignored local state.
+
+Keep the hub's guides and Agent configuration centralized. Analyze external members
+by default for this role; initializing their files remains a per-member choice.
+The hub role does not mean a documents-only artifact selection: generate the chosen
+Agent entry points and routes to the connected repositories. Include the hub itself
+in the registry for document review once it is a Git checkout. If members will be
+supplied later, deliver the selected hub entry points and documentation structure,
+record the pending repository selection, and avoid invented service commands or
+application smoke results for the hub.
+
+### Monorepo
+
+Keep the current directory as the future code repository. Ask only for project
+context that matters now, such as known components or an established stack; allow
+"decide later". Initialize the selected Agent entry points, documentation root and
+first-development guidance. This choice does not request an application skeleton,
+package manager, runtime installation or new nested repositories. Add executable
+scaffolding only when requested. A proposed `apps/` or `packages/` layout stays a
+documented proposal until selected; future commands stay `phase: "planned"` with
+their reason, and application execution stays `not run` until code exists and runs.
+
+For either role, preserve selected development, testing and local-startup goals,
+then continue the activity interview. Cloud questions remain conditional on release
+or operations work. A generic application-description question is appropriate only
+after that role needs it or the user chooses another project setup.
 
 ## Record answers and inspect the plan
 
@@ -56,7 +123,7 @@ the agent performs those steps using [toolchain preparation](toolchains.md).
 | Field | Meaning |
 | --- | --- |
 | `language` | Explicit `en` or `zh-CN` choice for generated prose; missing remains a question, not an English default |
-| `background` | Short system purpose and user goals; no machine paths, credentials or raw diagnostics |
+| `background` | Chosen repository role, short system purpose and user goals; no machine paths, credentials or raw diagnostics |
 | `activities` | Boolean choices for `development`, `testing`, `deployment`, `operations` |
 | `platforms` | Entries with stable `id`, `provider` (`aws`, `azure`, `gcp`, `other`), service and environment names; `other` also needs `name` |
 | Platform `access` | `cli`, `existing-tools`, or `documentation-only` |

@@ -13,6 +13,12 @@ destination takes precedence. Resolve the Git root and pass it to every helper;
 never write to the Skill installation directory because that is the shell's cwd.
 When several repositories are selected, retain their register/analyze/init modes.
 
+When the target has no application sources, resolve its
+[repository role](onboarding.md#empty-directory-role-selection) before deriving
+application capabilities. A documentation hub connects other repositories by Git
+URL or local directory; a monorepo receives code later. Both can have a complete
+Agent harness now, while project commands and execution remain pending as needed.
+
 Present the generated-document language choice at initialization, reusing an
 explicit earlier answer. Save it in the profile, workspace and generation spec.
 Before consolidating existing documents, show the discovered files and proposed

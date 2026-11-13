@@ -139,7 +139,15 @@ function planOnboarding(input) {
   const remote = activities.deployment === true || activities.operations === true;
   const questions = [];
   if (!profile.language) questions.push({ id: "language", prompt: "Which language should the generated harness documents and agent instructions use?", choices: ["English (en)", "简体中文 (zh-CN)"] });
-  if (!profile.background) questions.push({ id: "background", prompt: "What does this workspace do, who uses it, and which recurring tasks should the harness help with?" });
+  if (!profile.background) questions.push({
+    id: "background",
+    prompt: "What role should this workspace serve? In an empty directory, choose its role before describing an application; an existing project can supply background from its sources.",
+    choices: [
+      "Harness documentation hub — keep shared harness guides here and connect other repositories by Git URL or local directory",
+      "Monorepo — initialize the harness here and add application code to this repository later",
+      "Existing or other project — use confirmed project context or describe another setup"
+    ]
+  });
   const unanswered = ACTIVITIES.filter((activity) => activities[activity] === void 0);
   if (unanswered.length) questions.push({ id: "activities", prompt: `Which of these activities should initialization cover: ${unanswered.join(", ")}? Record each as needed or not needed.` });
   if (remote && !platforms.length) questions.push({ id: "platforms", prompt: "Which platforms host the environments you want to deploy to or operate? Multiple platforms are supported.", choices: ["AWS", "Azure", "Google Cloud", "Other / self-hosted"] });

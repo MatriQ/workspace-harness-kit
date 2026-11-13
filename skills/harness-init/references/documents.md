@@ -62,7 +62,13 @@ Compare each source within its applicable context. If local, CI, and runtime ver
 
 ## Empty project
 
-Establish the project type, known runtime and deployment choices, and the smallest useful behavior. If the user has not decided on a stack or hosting target, offer a suitable reference path and leave decisions visible. For selected development/testing, lead from an empty directory to runtime pinning, package and lockfile setup, a minimal runnable component, necessary configuration, and one behavior test. Include CI or a release rehearsal with rollback only when selected. Use project-type-appropriate checks, such as a CLI invocation, an HTTP request, a worker cycle, or installation in a clean consumer. Only record a real passing result when it ran.
+First resolve the [empty-directory role](onboarding.md#empty-directory-role-selection).
+A Harness documentation hub needs repository selection, source-backed cross-repository
+routes and the selected Agent entry points. A future monorepo needs its harness and
+first-development guidance; its stack can remain undecided. Neither choice alone
+requests executable application scaffolding.
+
+When application creation is requested, establish the project type, known runtime and deployment choices, and the smallest useful behavior. If the user has not decided on a stack or hosting target, offer a suitable reference path and leave decisions visible. For selected development/testing, lead from an empty directory to runtime pinning, package and lockfile setup, a minimal runnable component, necessary configuration, and one behavior test. Include CI or a release rehearsal with rollback only when selected. Use project-type-appropriate checks, such as a CLI invocation, an HTTP request, a worker cycle, or installation in a clean consumer. Only record a real passing result when it ran.
 
 Give complete contents or a confirmed generator for every file needed by the first
 command. Create directories and a root `.gitignore` if absent; harness ignore rules

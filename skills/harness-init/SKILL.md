@@ -13,6 +13,14 @@ to derive native entry points and recurring workflows from that repository. Use 
 documents-only scope when requested; an earlier rehearsal profile does not override
 a later request for the real repository's complete configuration.
 
+For an empty directory or a repository without application sources, first offer
+**Harness documentation hub** (connect other repositories by Git URL or local
+directory next) and **Monorepo** (add code to this repository later), with another
+setup available as free text. Reuse an explicit role from the request or saved
+background. Follow the [empty-directory branches](references/onboarding.md#empty-directory-role-selection)
+before asking for an application description or stack; an empty directory alone
+does not select application scaffolding.
+
 For a new repository, prefer `harness.layout: "centralized"`: keep supporting
 content in `.harness/`, use one regular `AGENTS.md`, and link `CLAUDE.md` to it.
 Use `native` when the user selects native discovery, settings, hooks or CI, or when
