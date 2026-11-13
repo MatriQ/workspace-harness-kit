@@ -5,8 +5,9 @@ import { isObject, json } from '../core/json.js';
 import { evaluateVerification, matchesJson, validateVerificationRecord } from '../core/verification.js';
 import type { DiagnosticCheck, VerificationCheck, VerificationObservation, VerificationRecord } from '../core/verification.js';
 import { HARNESS_RECEIPT, HARNESS_SPEC, sourcePath } from './harness.js';
+import { localBindingFingerprint } from './local-context.js';
 import { checkHarness } from './harness-check.js';
-import { fileHash, hash, readJson, resolvePath, stat, within } from './files.js';
+import { fileHash, hash, readJson, resolvePath, within } from './files.js';
 
 export interface DiagnosticExecution { status: number | null; stdout: string; stderr: string; error?: unknown }
 export type DiagnosticRunner = (argv: string[], cwd: string, timeoutSeconds: number) => DiagnosticExecution;
@@ -19,11 +20,7 @@ export function harnessDoctor(root: string, options: { record?: unknown; run?: s
   root = resolvePath(root);
   const spec = readJson(within(root, HARNESS_SPEC)); validateHarnessSpec(spec);
   const artifacts = checkHarness(root, true);
-  const localFile = within(root, '.harness/workspace.local.json');
-  const fingerprint = () => {
-    const local = stat(localFile) ? readJson(localFile) : {};
-    return hash(json({ root, receipt: fileHash(within(root, HARNESS_RECEIPT)), checkouts: isObject(local) ? local.checkouts : null }));
-  };
+  const fingerprint = () => hash(json({ root, receipt: fileHash(within(root, HARNESS_RECEIPT)), local_binding: localBindingFingerprint(root) }));
   const binding = fingerprint();
   const checks: VerificationCheck[] = spec.targets.map(target => ({ id: `harness-agent-${target}`, layer: 'agent', target: { environment: 'local', identity: target }, criterion: spec.layout === 'centralized'
     ? 'The target session loaded AGENTS.md through its entry point and followed a linked procedure; native Skill, command and agent registration is not configured'

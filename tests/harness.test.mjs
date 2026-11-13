@@ -84,7 +84,7 @@ test('centralized alias creation rolls back without discarding original entry po
 test('centralized selection confines output and distinguishes native integrations', t => {
   const f = fixture(t), spec = centralizedSpec();
   for (const patch of [{ documents: [{ path: 'docs/index.md', body: 'Outside the selected directory' }] },
-    { resources: [{ path: '.harness/workspace.json', body: '{}' }] }, { ci: { provider: 'github-actions', checks: [] } }, { settings: {} }]) {
+    { resources: [{ path: '.harness/workspace.json', body: '{}' }] }, { settings: {} }]) {
     assert.throws(() => validateHarnessSpec({ ...spec, ...patch }), /Centralized/);
   }
   const profile = { schema_version: 1, harness: { layout: 'centralized', targets: spec.targets, artifacts: { documents: true } } };
@@ -127,7 +127,7 @@ test('a minimal new workspace generates only its chosen host and artifact scope'
     const check = checkHarness(directory);
     assert.equal(check.status, 'passed');
     assert.equal(check.configuration.kind, 'entrypoints-only');
-    assert.deepEqual(plan.files.map(file => file.kind).sort(), ['entrypoint', 'runtime', 'runtime', 'spec']);
+    assert.deepEqual(plan.files.map(file => file.kind).sort(), ['entrypoint', 'runtime', 'runtime', 'runtime', 'spec']);
     assert.equal(fs.existsSync(path.join(directory, target === 'codex' ? 'AGENTS.md' : 'CLAUDE.md')), true);
     for (const folder of ['.codex', '.claude', '.agents', '.github']) assert.equal(fs.existsSync(path.join(directory, folder)), false);
   }

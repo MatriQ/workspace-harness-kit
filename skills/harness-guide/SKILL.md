@@ -18,3 +18,39 @@ When `onboarding` is present, use its selected activities and platform choices t
 find the generated toolchain, environment and operational guides. These choices
 record intended scope; obtain current installation, authentication and target access
 evidence before asserting readiness. A new user request can extend the saved scope.
+
+
+Use the task coverage table and evidenced capabilities to locate a business journey
+before expanding a source search. Return the responsible implementation entry,
+interface/data boundary, relevant condition and why that mapping answers the task.
+When a guide lacks a key mapping, inspect authorized original material and identify
+the documentation gap; naming a repository alone is not a usable answer. Update
+shared documentation only within the current task's authorization.
+
+## Machine-local context
+
+Before work needing checkout paths, tool observations, port overrides, local service
+addresses, CLI profiles or execution state, read the workspace registry's optional
+`local_context` entry. Its default is `.harness/docs/workspace.local.md`; preserve an
+established `AGENTS.local.md` or explicitly chosen `*.local.md`. The filename does
+not imply automatic host loading. Use this Skill's bundled common helper:
+
+```sh
+node "$SKILL/scripts/local-context.mjs" --workspace "$WORKSPACE"
+```
+
+The helper validates the versioned JSON block, Git identity and ignore/tracking
+status, resolving paths from the selected workspace, not the shell directory. A
+missing binding is pending; supply the checkout using workspace plan/apply. Legacy
+`.harness/workspace.local.json` is a read-only compatibility input. Use workspace
+migration before maintaining local state; never double-write a JSON path map.
+
+Write machine observations through `--patch "$LOCAL_PATCH"`, where the temporary
+JSON patch contains the relevant `tools`, `environment`, `access`, `execution` or
+`state` section. Keep one authority per value and preserve handwritten Markdown.
+Tools still use their required `.env`, logs and JSON evidence formats; reference
+those ignored artifacts from the local entry. Credential values remain in the
+existing environment/keychain mechanism. Shared guides contain required versions,
+configuration names and project defaults, not personal adopted values or readiness.
+Reverify bindings and relevant observations after changing machine, checkout or
+access target. Never copy another machine's successful startup/login/test state.

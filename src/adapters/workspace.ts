@@ -1,72 +1,36 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { parse as parseToml } from 'smol-toml';
-import type { AdoptionMode, Binding, LocalManifest, Member, WorkspaceManifest } from '../core/types.js';
+import type { AdoptionMode, LocalManifest, Member, WorkspaceManifest } from '../core/types.js';
 import { componentModel, documentFreshness, fingerprints, MODES, relativePath, requireWorkspace, schema, sourceSnapshot, validateId, validateLanguage, validateManifest, WorkspaceError } from '../core/registry.js';
 import { equal, isObject, json } from '../core/json.js';
 import { planOnboarding, validateOnboarding } from '../core/onboarding.js';
 import type { OnboardingProfile } from '../core/onboarding.js';
-import { atomicWrite, fileHash, hash, readJson, resolvePath, stat, within } from './files.js';
+import { atomicWrite, expandUser, fileHash, hash, readJson, resolvePath, stat, within } from './files.js';
+import { assertPrivate, localContextEntry, readLocalContext, renderLocalContext, machineFingerprint, validateLocalContext, LEGACY_LOCAL_CONTEXT } from './local-context.js';
+import { isLocalResource } from '../core/local-context.js';
 import { inspectExistingDocuments } from './document-inventory.js';
 import type { DocumentInventory } from './document-inventory.js';
 
 export { WorkspaceError, componentModel, validateManifest } from '../core/registry.js';
-const MANIFEST = 'workspace.json', LOCAL = 'workspace.local.json';
+const MANIFEST = 'workspace.json', LOCAL = 'local-context';
 const SKIP_DIRS = new Set(['node_modules', 'vendor', 'target', 'dist', 'build', 'coverage', '__pycache__']);
 const PROJECT_FILES: Record<string, string> = { 'package.json': 'JavaScript', 'tsconfig.json': 'TypeScript', 'pyproject.toml': 'Python', 'setup.py': 'Python', 'setup.cfg': 'Python', 'requirements.txt': 'Python', Pipfile: 'Python', 'go.mod': 'Go', 'Cargo.toml': 'Rust', 'pom.xml': 'Java', 'build.gradle': 'JVM', 'build.gradle.kts': 'Kotlin', Gemfile: 'Ruby', 'composer.json': 'PHP' };
 const LOCKFILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'uv.lock', 'poetry.lock', 'Pipfile.lock', 'go.sum', 'Cargo.lock', '.node-version', '.nvmrc', '.python-version', '.tool-versions']);
 const FRAMEWORKS: Record<string, string> = { react: 'React', next: 'Next.js', vue: 'Vue', nuxt: 'Nuxt', express: 'Express', '@nestjs/core': 'NestJS', fastapi: 'FastAPI', django: 'Django', flask: 'Flask' };
-export interface Checkout extends Binding { kind: 'checkout' | 'submodule' | 'worktree'; branch: string | null; head: string | null; remote: string | null; harness: boolean }
+import { checkout, git } from './git.js';
+import type { Checkout } from './git.js';
+export { checkout, git, normalizedRemote } from './git.js';
+export type { Checkout } from './git.js';
 export interface Source { path: string; category: string; sha256?: string; unavailable?: boolean; language?: string | null; script_names?: string[]; typescript?: boolean; frameworks?: string[]; parse_error?: boolean }
 export type Selection = [id: string, mode: AdoptionMode, directory: string];
 export type MemberOption = [id: string, value: string];
-export interface PlanRequest { members: Selection[]; language: string | null; member_languages: MemberOption[]; reviews?: MemberOption[]; source_files?: MemberOption[]; profile?: OnboardingProfile }
+export interface PlanRequest { members: Selection[]; language: string | null; member_languages: MemberOption[]; reviews?: MemberOption[]; source_files?: MemberOption[]; profile?: OnboardingProfile; local_context?: string; local_patch?: unknown }
 export interface WorkspacePlan {
   schema_version: 1; workspace: string; before: Record<string, string | null>; request: PlanRequest;
   selections: Record<string, Checkout>; effective_languages: Record<string, string>; analysis: Record<string, Source[]>;
   document_consolidation: Record<string, DocumentInventory>;
-  shared: WorkspaceManifest; local: LocalManifest;
-}
-export function git(directory: string, ...args: string[]): string | null {
-  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0' };
-  for (const key of ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX']) delete (env as NodeJS.ProcessEnv)[key];
-  const result = spawnSync('git', ['-C', directory, ...args], { env, encoding: 'utf8', timeout: 15000, maxBuffer: 64 * 1024 * 1024 });
-  if (result.error) throw result.error;
-  return result.status === 0 ? result.stdout.replace(/\n+$/, '') : null;
-}
-export function normalizedRemote(value: string | null): string | null {
-  if (!value) return null;
-  let host: string, remotePath: string;
-  if (value.includes('://')) {
-    try {
-      const url = new URL(value), protocol = url.protocol.slice(0, -1);
-      if (!['http', 'https', 'ssh', 'git'].includes(protocol) || !url.hostname) return null;
-      host = url.hostname.toLowerCase();
-      const defaults: Record<string, string> = { http: '80', https: '443', ssh: '22', git: '9418' };
-      if (url.port && url.port !== defaults[protocol]) host += `:${url.port}`;
-      remotePath = url.pathname;
-    } catch { return null; }
-  } else {
-    const match = /^(?:[^@:/]+@)?([^:/]+):([^?#]+)(?:[?#].*)?$/.exec(value);
-    if (!match) return null;
-    host = match[1].toLowerCase(); remotePath = match[2];
-  }
-  remotePath = remotePath.replace(/^\/+|\/+$/g, '').replace(/\.git$/, '');
-  if (!remotePath || remotePath.split('/').some(part => ['', '.', '..'].includes(part))) return null;
-  return `${host}/${remotePath}`;
-}
-export function checkout(directory: string): Checkout {
-  const rootValue = stat(directory)?.isDirectory() ? git(directory, 'rev-parse', '--show-toplevel') : null;
-  requireWorkspace(rootValue, `Not a Git working directory: ${directory}`);
-  const root = resolvePath(rootValue), commonValue = git(root, 'rev-parse', '--git-common-dir');
-  requireWorkspace(commonValue, `Could not determine the Git repository identity: ${root}`);
-  const common = resolvePath(path.resolve(root, commonValue));
-  const superproject = git(root, 'rev-parse', '--show-superproject-working-tree'), gitDir = git(root, 'rev-parse', '--absolute-git-dir');
-  const kind = superproject ? 'submodule' : gitDir && resolvePath(gitDir) !== common ? 'worktree' : 'checkout';
-  return { path: root, git_common_dir: common, kind, branch: git(root, 'symbolic-ref', '--quiet', '--short', 'HEAD'),
-    head: git(root, 'rev-parse', '--verify', 'HEAD'), remote: normalizedRemote(git(root, 'config', '--get', 'remote.origin.url')),
-    harness: ['AGENTS.md', 'CLAUDE.md'].some(name => stat(path.join(root, name))?.isFile()) };
+  shared: WorkspaceManifest; local: LocalManifest; local_context: { path: string; migration: boolean; backup: string | null; markdown_backup: string | null };
 }
 export interface DiscoverOptions { repo?: string[]; directory?: string[]; depth?: number; includeNested?: boolean; cwd?: string }
 export function discover(options: DiscoverOptions = {}) {
@@ -143,6 +107,7 @@ export function analyze(root: string, extraSources: string[] = []): Source[] {
   requireWorkspace(listing !== null, `Could not list repository files: ${root}`);
   const inventory: Source[] = [];
   for (const entry of [...new Set([...listing.split('\0'), ...extraSources])].filter(Boolean).sort()) {
+    if (isLocalResource(entry)) { requireWorkspace(!extraSources.includes(entry), `Local context cannot be a shared source: ${entry}`); continue; }
     if (entry.split('/').some(part => SKIP_DIRS.has(part) || ['.venv', '.git', '.worktrees'].includes(part))) {
       requireWorkspace(!extraSources.includes(entry), `Explicit source is in an excluded directory: ${entry}`); continue;
     }
@@ -163,40 +128,67 @@ export function analyze(root: string, extraSources: string[] = []): Source[] {
   }
   return inventory;
 }
-function manifestPaths(root: string): Record<string, string> {
+function manifestPaths(root: string, entry = localContextEntry(root)): Record<string, string> {
   const state = path.join(root, '.harness'), info = stat(state, false);
   requireWorkspace(!info || (info.isDirectory() && !info.isSymbolicLink()), `Expected a regular state directory: ${state}`);
-  const paths = Object.fromEntries([MANIFEST, LOCAL, '.gitignore'].map(name => [name, path.join(state, name)]));
+  const paths: Record<string, string> = { [MANIFEST]: within(root, '.harness/workspace.json'), [LOCAL]: within(root, entry),
+    '.gitignore': within(root, '.harness/.gitignore'), 'root-ignore': within(root, '.gitignore'), legacy: within(root, LEGACY_LOCAL_CONTEXT) };
   for (const file of Object.values(paths)) { const info = stat(file, false); requireWorkspace(!info || (info.isFile() && !info.isSymbolicLink()), `Expected a regular state file: ${file}`); }
   return paths;
 }
-function validateBindings(value: unknown): Record<string, Binding> {
-  schema(value); requireWorkspace(isObject(value.checkouts), 'Local checkouts must be an object keyed by member ID.');
-  for (const [id, binding] of Object.entries(value.checkouts)) {
-    validateId(id);
-    for (const field of ['path', 'git_common_dir']) requireWorkspace(isObject(binding) && typeof binding[field] === 'string' && path.isAbsolute(binding[field]), `Expected an absolute local ${field} for ${id}.`);
-  }
-  return value.checkouts as Record<string, Binding>;
-}
 function fileState(paths: Record<string, string>): Record<string, string | null> { return Object.fromEntries(Object.entries(paths).map(([name, file]) => [name, stat(file) ? fileHash(file) : null])); }
-function assertLocalUntracked(root: string): void {
-  requireWorkspace(git(root, 'ls-files', '--error-unmatch', '--', `.harness/${LOCAL}`) === null, `Untrack .harness/${LOCAL} before updating local checkout bindings.`);
+function assertLocalUntracked(root: string, entry = localContextEntry(root)): void {
+  assertPrivate(root, entry, false); assertPrivate(root, LEGACY_LOCAL_CONTEXT, false);
 }
-export interface PlanOptions { reviews?: MemberOption[]; sourceFiles?: MemberOption[]; profile?: OnboardingProfile }
+export interface PlanOptions { reviews?: MemberOption[]; sourceFiles?: MemberOption[]; profile?: OnboardingProfile; local_context?: string; local_patch?: unknown }
 export function makePlan(root: string, selections: Selection[] = [], language: string | null = null, overrides: MemberOption[] = [], options: PlanOptions = {}): WorkspacePlan {
   return planInternal(root, selections, language, overrides, options, false);
 }
 function planInternal(root: string, selections: Selection[], language: string | null, overrides: MemberOption[], options: PlanOptions, lockHeld: boolean): WorkspacePlan {
   root = resolvePath(root);
   requireWorkspace(stat(root)?.isDirectory(), `Workspace directory is unavailable: ${root}`);
-  const paths = manifestPaths(root);
+  const previousEntry = localContextEntry(root);
+  if (options.local_context !== undefined && options.local_context !== previousEntry) {
+    const previous = readLocalContext(root, { planning: true });
+    requireWorkspace(previous.format !== 'markdown', `Local context already exists at ${previousEntry}; preserve/reconcile that entry before selecting another authority`);
+  }
+  const context = readLocalContext(root, { file: options.local_context, planning: true });
+  const paths = manifestPaths(root, context.path);
+  if (context.legacy) {
+    const receiptFile = within(root, '.harness/generated.json');
+    if (stat(receiptFile)) {
+      const receipt = readJson(receiptFile);
+      const runtime = isObject(receipt) && Array.isArray(receipt.files) ? receipt.files.find(file => isObject(file) && file.path === '.harness/runtime/local-context.mjs') : undefined;
+      requireWorkspace(isObject(runtime) && typeof runtime.sha256 === 'string' && stat(within(root, runtime.path as string))?.isFile()
+        && fileHash(within(root, runtime.path as string)) === runtime.sha256, 'Refresh generated local-context consumers with the saved harness spec before retiring legacy JSON; reconcile custom project locators too');
+      const saved = readJson(within(root, '.harness/harness.json'), {});
+      const resources = isObject(saved) ? [saved.resources, ...(Array.isArray(saved.skills) ? saved.skills.filter(isObject).map(skill => skill.resources) : [])].flatMap(value => Array.isArray(value) ? value : []) : [];
+      for (const resource of resources) if (isObject(resource) && typeof resource.path === 'string' && /\.(?:[cm]?js|ts|py|sh)$/.test(resource.path)
+        && typeof resource.body === 'string' && resource.body.includes('workspace.local.json')) requireWorkspace(false, `Reconcile declared legacy locator resource before migration: ${resource.path}; use the shared local-context runtime`);
+
+    }
+  }
   requireWorkspace(lockHeld || !stat(path.join(root, '.harness/.workspace.lock'), false), 'Workspace apply is locked. Recover an interrupted apply and create a new plan.');
-  assertLocalUntracked(root);
+  assertLocalUntracked(root, context.path);
   const before = fileState(paths);
   const shared = readJson(paths[MANIFEST], { schema_version: 1, language: 'en', members: [] });
-  const local = readJson(paths[LOCAL], { schema_version: 1, checkouts: {} });
-  const members = validateManifest(shared), bindings = validateBindings(local);
+  let local = structuredClone(context.data);
+  if (!context.machine_matches) {
+    const snapshot = { machine: local.machine, tools: local.tools, access: local.access, execution: local.execution, onboarding_status: local.onboarding_status };
+    const history = isObject(local.state?.machine_history) ? local.state.machine_history : {};
+    local.state = { ...local.state, machine_history: { ...history, [hash(json(snapshot))]: snapshot }, previous_machine_state: snapshot };
+    local.tools = {}; local.access = {}; local.execution = { status: 'pending', reason: 'Machine changed; verify readiness again' }; local.onboarding_status = {};
+  }
+  if (options.local_patch !== undefined) {
+    requireWorkspace(isObject(options.local_patch) && !('schema_version' in options.local_patch) && !('machine' in options.local_patch), 'Local patch must contain state fields, not schema_version or machine');
+    const mergePatch = (current: unknown, patch: unknown): unknown => isObject(current) && isObject(patch) ? Object.fromEntries([...new Set([...Object.keys(current), ...Object.keys(patch)])].map(key => [key, Object.hasOwn(patch, key) ? mergePatch(current[key], patch[key]) : current[key]])) : structuredClone(patch);
+    const patched = mergePatch(local, options.local_patch);
+    validateLocalContext(patched); local = patched;
+  }
+  local.machine = machineFingerprint();
+  const members = validateManifest(shared), bindings = local.checkouts;
   const manifest = shared as WorkspaceManifest;
+  manifest.local_context = context.path;
   if (options.profile !== undefined) { validateOnboarding(options.profile); manifest.onboarding = structuredClone(options.profile); }
   if (options.profile?.language && language !== null) requireWorkspace(options.profile.language === language, '--language differs from the supplied profile language; choose one language before previewing');
   if (language !== null) {
@@ -216,7 +208,7 @@ function planInternal(root: string, selections: Selection[], language: string | 
   for (const [id, locale] of overrides) { requireWorkspace(selected.has(id) && !overrideById.has(id), `Language override requires a uniquely selected member: ${id}`); validateLanguage(locale); overrideById.set(id, locale); }
   const reviews = options.reviews ?? [], sourceFiles = options.sourceFiles ?? [];
   for (const [id, file] of [...reviews, ...sourceFiles]) {
-    requireWorkspace(selected.has(id) && selected.get(id)![0] !== 'register', `Source and review options need a selected analyze/init member: ${id}`); relativePath(file);
+    requireWorkspace(selected.has(id) && selected.get(id)![0] !== 'register', `Source and review options need a selected analyze/init member: ${id}`); relativePath(file); requireWorkspace(!isLocalResource(file), 'Local context cannot enter shared source or document review baselines');
   }
   const analysis = new Map<string, Source[]>(), languages = new Map<string, string>();
   const documentInventories = new Map<string, DocumentInventory>();
@@ -225,6 +217,7 @@ function planInternal(root: string, selections: Selection[], language: string | 
     requireWorkspace(!old?.remote || old.remote === record.remote, `Checkout identity changed for ${id}; review the shared member before rebinding it.`);
     for (const [otherId, binding] of Object.entries(bindings)) requireWorkspace(otherId === id || record.git_common_dir !== binding.git_common_dir, `${id} and ${otherId} refer to the same Git repository.`);
     const member: Member = { ...old, id, mode };
+    if (record.path === root) manifest.workspace_member = id;
     if (record.remote) member.remote = record.remote;
     if (overrideById.has(id)) member.language = overrideById.get(id)!;
     languages.set(id, member.language ?? manifest.language);
@@ -254,26 +247,36 @@ function planInternal(root: string, selections: Selection[], language: string | 
   }
   manifest.members = Object.keys(members).sort().map(key => members[key]);
   for (const choice of manifest.onboarding?.documentation?.existing_documents ?? []) requireWorkspace(Object.hasOwn(members, choice.member), `Existing document choice references an unknown member: ${choice.member}`);
+  validateLocalContext(local);
+  for (const [id, binding] of Object.entries(bindings)) {
+    const actual = checkout(resolvePath(path.resolve(root, expandUser(binding.path))));
+    requireWorkspace(Object.hasOwn(members, id) && actual.git_common_dir === resolvePath(path.resolve(root, expandUser(binding.git_common_dir))) && actual.remote === (members[id].remote ?? null), `Local checkout identity differs for ${id}; inspect and rebind it`);
+    bindings[id] = { path: actual.path, git_common_dir: actual.git_common_dir };
+  }
   validateManifest(manifest);
+  renderLocalContext(context.markdown, local); // Reject an oversized update before any write.
   requireWorkspace(equal(before, fileState(paths)), 'Workspace files changed while planning. Preview again.');
   const request: PlanRequest = { language, member_languages: overrides, members: [...selected].map(([id, [mode, record]]) => [id, mode, record.path]) };
   if (reviews.length) request.reviews = reviews;
   if (sourceFiles.length) request.source_files = sourceFiles;
   if (options.profile !== undefined) request.profile = structuredClone(options.profile);
+  if (options.local_context !== undefined) request.local_context = options.local_context;
+  if (options.local_patch !== undefined) request.local_patch = structuredClone(options.local_patch);
   return { schema_version: 1, workspace: root, before, request, selections: Object.fromEntries([...selected].map(([id, [, record]]) => [id, record])),
-    effective_languages: Object.fromEntries(languages), analysis: Object.fromEntries(analysis), document_consolidation: Object.fromEntries(documentInventories), shared: manifest, local: local as LocalManifest };
+    effective_languages: Object.fromEntries(languages), analysis: Object.fromEntries(analysis), document_consolidation: Object.fromEntries(documentInventories), shared: manifest, local, local_context: { path: context.path, migration: !!context.legacy, backup: context.legacy ? `.harness/local-backups/workspace.local.${before.legacy}.json.bak` : null, markdown_backup: context.legacy && before[LOCAL] ? `.harness/local-backups/${path.basename(context.path)}.${before[LOCAL]}.bak` : null } };
 }
 export interface ApplyOptions { write?: typeof atomicWrite }
 export function applyPlan(input: unknown, options: ApplyOptions = {}) {
   schema(input);
   requireWorkspace(typeof input.workspace === 'string' && isObject(input.request), 'Invalid plan. Create a new preview with the plan command.');
   const old = input as unknown as WorkspacePlan, request = old.request, root = old.workspace;
-  const planOptions = { reviews: request.reviews, sourceFiles: request.source_files, profile: request.profile };
+  const planOptions = { reviews: request.reviews, sourceFiles: request.source_files, profile: request.profile, local_context: request.local_context, local_patch: request.local_patch };
   let fresh = makePlan(root, request.members, request.language, request.member_languages, planOptions);
   requireWorkspace(equal(fresh, old), 'The workspace, selected checkout, or analysis changed since preview. Create a new plan.');
-  let paths = manifestPaths(root);
+  let paths = manifestPaths(root, fresh.local_context.path);
   const state = path.dirname(paths[MANIFEST]);
-  fs.mkdirSync(state, { recursive: true }); paths = manifestPaths(root);
+  const directories: string[] = [];
+  fs.mkdirSync(state, { recursive: true }); paths = manifestPaths(root, fresh.local_context.path);
   const lock = path.join(state, '.workspace.lock');
   try { fs.mkdirSync(lock); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; throw new WorkspaceError(`Apply is locked: ${lock}. Recover the interrupted apply and create a new plan.`); }
   const backups = new Map<string, { content: Buffer; mode: number } | null>(), written = new Map<string, string>(), changes: string[] = [];
@@ -282,31 +285,55 @@ export function applyPlan(input: unknown, options: ApplyOptions = {}) {
     fresh = planInternal(root, request.members, request.language, request.member_languages, planOptions, true);
     requireWorkspace(equal(fresh, old), 'Workspace changed before the apply lock was acquired. Create a new plan.');
     for (const [name, file] of Object.entries(paths)) { const info = stat(file); backups.set(name, info ? { content: fs.readFileSync(file), mode: info.mode & 0o777 } : null); }
-    const original = backups.get('.gitignore')?.content.toString('utf8') ?? '';
-    const rules = ['/.workspace.lock/', '/' + LOCAL];
-    const lines = original.split(/\r?\n/); if (lines.at(-1) === '') lines.pop();
-    let desired = original;
-    if (!equal(lines.slice(-2), rules)) desired += (original && !original.endsWith('\n') ? '\n' : '') + rules.join('\n') + '\n';
-    const payloads: Array<[string, string, number]> = [['.gitignore', desired, 0o644], [LOCAL, json(fresh.local), 0o600], [MANIFEST, json(fresh.shared), 0o644]];
+    const addRules = (original: string, rules: string[]) => original + (original && !original.endsWith('\n') ? '\n' : '') + rules.filter(rule => !original.split(/\r?\n/).includes(rule)).map(rule => rule + '\n').join('');
+    const ignores = addRules(backups.get('.gitignore')?.content.toString('utf8') ?? '', ['/.workspace.lock/', '/workspace.local.json', '/local-backups/', '/local-evidence/', '*.local.json', '*.local.md']);
+    const rootIgnores = addRules(backups.get('root-ignore')?.content.toString('utf8') ?? '', ['*.local.md', '*.local.json']);
+    const context = readLocalContext(root, { file: fresh.local_context.path, planning: true });
+    const markdown = renderLocalContext(context.markdown, fresh.local);
+    const payloads: Array<[string, string, number]> = [['.gitignore', ignores, 0o644], ['root-ignore', rootIgnores, 0o644], [LOCAL, markdown, 0o600], [MANIFEST, json(fresh.shared), 0o644]];
+    for (const [name, relative, source] of [['backup', fresh.local_context.backup, 'legacy'], ['markdown-backup', fresh.local_context.markdown_backup, LOCAL]] as const) {
+      if (!relative) continue;
+      const backup = within(root, relative), original = backups.get(source)!.content;
+      requireWorkspace(!stat(backup, false)?.isSymbolicLink(), 'Migration recovery copy must be a regular file');
+      paths[name] = backup;
+      const previous = stat(backup);
+      requireWorkspace(!previous || fs.readFileSync(backup).equals(original), 'Migration backup differs; preserve it and investigate');
+      backups.set(name, previous ? { content: fs.readFileSync(backup), mode: previous.mode & 0o777 } : null);
+      payloads.splice(2, 0, [name, original.toString('utf8'), 0o600]);
+    }
     for (const [name, content, mode] of payloads) {
       const file = paths[name];
-      if (name !== '.gitignore' && stat(file) && equal(readJson(file), name === LOCAL ? fresh.local : fresh.shared)) continue;
+      manifestPaths(root, fresh.local_context.path);
+      within(root, path.relative(root, file));
+      requireWorkspace(!stat(file, false)?.isSymbolicLink(), `Workspace output became a symlink: ${file}`);
+      if (name === LOCAL) assertPrivate(root, fresh.local_context.path);
       if (stat(file) && fs.readFileSync(file).equals(Buffer.from(content))) continue;
-      manifestPaths(root);
-      requireWorkspace((stat(file) ? fileHash(file) : null) === fresh.before[name], `Workspace file changed during apply: ${file}`);
-      if (name === LOCAL && git(root, 'rev-parse', '--show-toplevel')) requireWorkspace(git(root, 'check-ignore', '--quiet', '--', `.harness/${LOCAL}`) !== null, `Git does not ignore .harness/${LOCAL}; the local checkout file was left alone.`);
-      write(file, content, mode); written.set(name, hash(content)); changes.push('.harness/' + name);
+      if (name !== 'backup' && name !== 'markdown-backup') requireWorkspace((stat(file) ? fileHash(file) : null) === fresh.before[name], `Workspace file changed during apply: ${file}`);
+      if (name === LOCAL) assertPrivate(root, fresh.local_context.path);
+      if (name === 'backup' || name === 'markdown-backup') assertPrivate(root, path.relative(root, file));
+      const missing: string[] = []; let parent = path.dirname(file);
+      while (!stat(parent)) { missing.push(parent); parent = path.dirname(parent); }
+      for (const directory of missing.reverse()) { fs.mkdirSync(directory); directories.push(directory); }
+      try { write(file, content, mode); } finally { if (stat(file, false)?.isFile() && fileHash(file) === hash(content)) written.set(name, hash(content)); }
+      changes.push(path.relative(root, file));
+    }
+    if (fresh.local_context.migration) {
+      within(root, LEGACY_LOCAL_CONTEXT);
+      requireWorkspace(fileHash(paths.legacy) === fresh.before.legacy, 'Legacy local context changed during migration');
+      fs.unlinkSync(paths.legacy); written.set('legacy', 'deleted'); changes.push(LEGACY_LOCAL_CONTEXT);
     }
   } catch (error) {
     const rollbackErrors: string[] = [];
     for (const [name, digest] of [...written].reverse()) {
       const file = paths[name];
       try {
-        if (!stat(file) || stat(file, false)?.isSymbolicLink() || fileHash(file) !== digest) { rollbackErrors.push(`${file}: changed by another writer`); continue; }
+        within(root, path.relative(root, file));
+        if ((digest === 'deleted' ? !!stat(file) : !stat(file) || fileHash(file) !== digest) || stat(file, false)?.isSymbolicLink()) { rollbackErrors.push(`${file}: changed by another writer`); continue; }
         const backup = backups.get(name);
         if (!backup) fs.unlinkSync(file); else write(file, backup.content, backup.mode);
       } catch { rollbackErrors.push(`${file}: restore failed`); }
     }
+    for (const directory of directories.reverse()) if (stat(directory, false)?.isDirectory() && resolvePath(directory) === directory && !fs.readdirSync(directory).length) fs.rmdirSync(directory);
     if (rollbackErrors.length) throw new WorkspaceError('Apply failed and some files need manual recovery: ' + rollbackErrors.join('; '));
     throw error;
   } finally { fs.rmdirSync(lock); }
@@ -324,11 +351,12 @@ export function checkWorkspace(root: string, local = false) {
   for (const file of manifest.documents ?? []) if (!stat(within(root, file))?.isFile()) errors.push(`Missing workspace document: ${file}`);
   assertLocalUntracked(root);
   if (local) {
-    if (git(root, 'rev-parse', '--show-toplevel') && git(root, 'check-ignore', '--quiet', '--', `.harness/${LOCAL}`) === null) errors.push(`Local checkout bindings are not Git-ignored: .harness/${LOCAL}`);
-    const bindings = validateBindings(readJson(paths[LOCAL]));
+    const context = readLocalContext(root);
+    if (!context.machine_matches) warnings.push('Local context belongs to another machine; rebind and verify readiness');
+    const bindings = context.machine_matches ? context.data.checkouts : {};
     for (const id of Object.keys(bindings).sort()) if (!Object.hasOwn(members, id)) errors.push(`Local checkout has no shared member: ${id}`);
     for (const [id, member] of Object.entries(members)) {
-      if (!Object.hasOwn(bindings, id)) { errors.push(`Missing local checkout binding: ${id}`); continue; }
+      if (!Object.hasOwn(bindings, id)) { warnings.push(`Missing local checkout binding: ${id}; complete ${localContextEntry(root)}`); continue; }
       const binding = bindings[id], directory = binding.path;
       try {
         const record = checkout(directory);

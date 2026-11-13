@@ -1,3 +1,4 @@
+import { MissingLocalContext } from './local-context.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { commandReference, documentCommands, makeDeclarations } from '../core/commands.js';
@@ -51,7 +52,7 @@ export function checkCommands(root: string, spec: HarnessSpec, documents: Array<
         row.status = stat(source(reference.path))?.isFile() ? 'passed' : 'failed';
         row.reason = row.status === 'passed' ? 'Referenced script exists; execution not verified' : `Missing script: ${reference.path}`;
       }
-    } catch { row.status = 'failed'; row.reason = 'Command context or declaration is invalid, unavailable or outside the selected checkout'; }
+    } catch (error) { if (error instanceof MissingLocalContext) { row.status = 'pending'; row.reason = error.message; continue; } row.status = 'failed'; row.reason = 'Command context or declaration is invalid, unavailable or outside the selected checkout'; }
   }
   return result;
 }

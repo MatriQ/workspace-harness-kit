@@ -91,16 +91,16 @@ test('source drift warns and strict checking fails', t => {
 });
 test('local checkout bindings are ignored and private', t => {
   const f = fixture(t), directory = f.repo('working-member'); git(f.directory, 'init', '--initial-branch=main'); f.apply(f.plan(['api', 'register', directory]));
-  assert.equal(git(f.directory, 'status', '--short'), '?? .harness/');
-  assert.equal(git(f.directory, 'check-ignore', '.harness/workspace.local.json'), '.harness/workspace.local.json');
-  assert.equal(fs.statSync(path.join(f.directory, '.harness/workspace.local.json')).mode & 0o777, 0o600);
+  assert.equal(git(f.directory, 'status', '--short'), '?? .gitignore\n?? .harness/');
+  assert.equal(git(f.directory, 'check-ignore', '.harness/docs/workspace.local.md'), '.harness/docs/workspace.local.md');
+  assert.equal(fs.statSync(path.join(f.directory, '.harness/docs/workspace.local.md')).mode & 0o777, 0o600);
 });
 test('tracked local state and symlinked state directory are rejected', t => {
   const f = fixture(t); git(f.directory, 'init', '--initial-branch=main');
   const state = path.join(f.directory, '.harness'); fs.mkdirSync(state); writeJson(path.join(state, 'workspace.local.json'), { schema_version: 1, checkouts: {} });
   git(f.directory, 'add', '.harness/workspace.local.json'); assert.throws(() => f.plan(), /Untrack/);
   const other = path.join(f.root, 'linked-workspace'); fs.mkdirSync(other); fs.symlinkSync(state, path.join(other, '.harness'));
-  assert.throws(() => makePlan(other), /regular state/);
+  assert.throws(() => makePlan(other), /regular state|escapes/);
 });
 test('same repository cannot be registered under two IDs', t => {
   const f = fixture(t), directory = f.repo('api', 'git@github.com:example/api.git');
@@ -129,8 +129,8 @@ test('analysis skips symlinks and rejects explicit escaping or excluded files', 
   assert.throws(() => analyze(directory, ['node_modules/index.js']), /excluded/);
 });
 test('check reports missing Git ignore rules', t => {
-  const f = fixture(t); git(f.directory, 'init', '--initial-branch=main'); f.apply(f.plan()); fs.unlinkSync(path.join(f.directory, '.harness/.gitignore'));
-  assert.match(f.check().errors[0], /not Git-ignored/);
+  const f = fixture(t); git(f.directory, 'init', '--initial-branch=main'); f.apply(f.plan()); fs.unlinkSync(path.join(f.directory, '.harness/.gitignore')); fs.unlinkSync(path.join(f.directory, '.gitignore'));
+  assert.throws(() => f.check(), /does not ignore/);
 });
 test('active apply lock blocks changes', t => {
   const f = fixture(t), plan = f.plan(); fs.mkdirSync(path.join(f.directory, '.harness/.workspace.lock'), { recursive: true });
@@ -140,7 +140,7 @@ test('write failure rolls back metadata and allows a later successful apply', t 
   const f = fixture(t), directory = f.repo('api'), plan = f.plan(['api', 'register', directory]);
   // Fail the rename of the second file, after the ignore rule was written.
   const rename = fs.renameSync;
-  const stub = t.mock.method(fs, 'renameSync', (source, target) => { if (path.basename(target) === 'workspace.local.json') throw new Error('Synthetic write failure'); return rename(source, target); });
+  const stub = t.mock.method(fs, 'renameSync', (source, target) => { if (path.basename(target) === 'workspace.local.md') throw new Error('Synthetic write failure'); return rename(source, target); });
   assert.throws(() => f.apply(plan), /Synthetic/); stub.mock.restore();
   assert.deepEqual(fs.readdirSync(path.join(f.directory, '.harness')), []);
   f.apply(f.plan(['api', 'register', directory])); assert.deepEqual(f.check().errors, []);

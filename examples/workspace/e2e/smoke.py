@@ -11,7 +11,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import ProxyHandler, build_opener
 
 
 WORKSPACE = Path(__file__).resolve().parents[1]
@@ -21,7 +21,7 @@ WORKER = WORKSPACE / "worker"
 
 
 def read_json(url):
-    with urlopen(url, timeout=5) as response:
+    with build_opener(ProxyHandler({})).open(url, timeout=5) as response:
         return json.load(response)
 
 

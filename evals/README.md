@@ -97,3 +97,22 @@ The [Mori centralized layout](mori-centralized-layout.md) records consolidation 
 one `.harness/` directory with a canonical AGENTS.md and a generated CLAUDE.md
 symlink, including task-state migration, alias checks and the limits imposed by
 concurrent application changes.
+
+## Task knowledge and document handoffs
+
+Use [the synthetic task request](task-handoff-request.md) for shared-data, refusal,
+regional asynchronous completion, historical-reference and evidence-boundary cases.
+Keep [reviewer notes](task-handoff-review.md) outside blinded author/consumer packs.
+`examples/check.py` exercises the underlying HTTP/SQLite/worker behavior and retains
+existing release counterexamples. A valid fixture or authored teaching example is
+not a causal model comparison or an independent semantic review. A paired trial
+must freeze original sources, permissions, model and time conditions, retain actual
+outputs/interventions, and use held-out inputs. Token/time/cost not measured stays
+unknown. Abstract reviewed repository samples into roles and boundaries before adapting
+fixtures; sample names, business facts and historical snapshots are not generic
+Harness defaults. No real document-center directory is required by this synthetic
+validation.
+
+The [0.3.0 upgrade/author replay record](task-handoff-validation.md) documents actual
+legacy migration, Chinese centralized generation and local behavior checks. Its
+explicitly unrun independent/model/real-target layers must not be promoted to passes.

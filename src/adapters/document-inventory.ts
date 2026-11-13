@@ -1,3 +1,4 @@
+import { isLocalResource } from '../core/local-context.js';
 import path from 'node:path';
 import type { OnboardingProfile } from '../core/onboarding.js';
 import { WorkspaceError } from '../core/registry.js';
@@ -30,7 +31,7 @@ export function inspectExistingDocuments(root: string, member: string, listing: 
   const choices = profile?.documentation?.existing_documents ?? [];
   const documents: ExistingDocument[] = [];
   for (const relative of [...new Set(listing.split('\0'))].filter(Boolean).sort()) {
-    if (!/\.(md|markdown|mdx|rst|adoc)$/i.test(relative) || relative.startsWith(`${folder}/`)
+    if (isLocalResource(relative) || !/\.(md|markdown|mdx|rst|adoc)$/i.test(relative) || relative.startsWith(`${folder}/`)
       || relative.split('/').some(part => EXCLUDED.has(part)) || TOOL_DIRECTORIES.some(prefix => relative.startsWith(prefix) || relative.includes(`/${prefix}`))
       || ENTRYPOINTS.has(path.posix.basename(relative).toLowerCase())) continue;
     let file: string;

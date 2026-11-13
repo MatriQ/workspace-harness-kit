@@ -16,6 +16,7 @@ try {
   // Build once, then inspect the exact tarball installed in a clean consumer directory.
   run(npm, ['run', 'build'], root);
   const [packed] = JSON.parse(run(npm, ['pack', '--ignore-scripts', '--json', '--pack-destination', temporary], root));
+  assert.ok(!packed.files.some(item => item.path.endsWith('.local.md') || item.path.endsWith('.local.json')), 'Package retained machine-local state');
   assert.ok(!packed.files.some(item => /^(skills|scripts|evals)\/.*\.py$/.test(item.path)), 'Package retained a Python helper');
   const consumer = path.join(temporary, 'consumer'); fs.mkdirSync(consumer);
   fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
@@ -37,11 +38,13 @@ import { evaluateReadiness } from 'workspace-harness-kit/readiness';
 import { discover } from 'workspace-harness-kit/workspace';
 import { junit, ecsVersion } from 'workspace-harness-kit/collect';
 import { Installer } from 'workspace-harness-kit/install';
+import { readLocalContext } from 'workspace-harness-kit/local-context';
 const record = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 assert.equal(evaluate(record, '2026-01-01T12:00:00Z').verdict, 'passed');
 assert.deepEqual(validateManifest({schema_version:1, language:'en', members:[]}), {});
 assert.equal(planOnboarding({schema_version:1}).status, 'needs-input');
 assert.equal(inspectToolchain({schema_version:1}, () => { throw new Error('Unexpected probe'); }).status, 'pending');
+assert.equal(readLocalContext(process.cwd()).format, 'missing');
 assert.equal(typeof discover, 'function'); assert.equal(typeof Installer, 'function');
 assert.equal(typeof validateHarnessSpec, 'function'); assert.equal(typeof renderHarness, 'function');
 assert.equal(typeof makeHarnessPlan, 'function'); assert.equal(typeof applyHarnessPlan, 'function'); assert.equal(typeof checkHarness, 'function');
@@ -110,6 +113,10 @@ const invalidTargets: HarnessSpec['targets'] = ['unknown-host'];
   assert.equal(JSON.parse(run(bin, ['harness', 'sync', '--workspace', workspace], consumer)).writes, 0);
   // Remove the entire npm consumer: installed Skills must have no hidden package dependency.
   fs.rmSync(consumer, { recursive: true });
+  for (const name of ['harness-init', 'harness-guide', 'harness-setup-local', 'harness-test', 'harness-verify-release']) {
+    const local = JSON.parse(run(process.execPath, [path.join(destination, name, 'scripts/local-context.mjs'), '--workspace', workspace], temporary, 2));
+    assert.equal(local.status, 'pending');
+  }
   const installedInit = path.join(destination, 'harness-init');
   const onboarding = JSON.parse(run(process.execPath, [path.join(installedInit, 'scripts/onboarding.mjs'),
     'plan', path.join(installedInit, 'assets/onboarding-aws.json')]));
@@ -133,6 +140,8 @@ const invalidTargets: HarnessSpec['targets'] = ['unknown-host'];
   assert.equal(JSON.parse(run(process.execPath, [path.join(installed, 'scripts/collect.mjs'), 'junit', '--component', 'api', '--attempt', '1',
     '--input', path.join(temporary, 'junit.xml'), '--target', path.join(temporary, 'target.json'), '--artifact', path.join(temporary, 'artifact.json'), '--observed-at', '2026-01-01T12:00:00Z'])).status, 'passed');
   fs.rmSync(destination, { recursive: true });
+  const detachedLocal = JSON.parse(run(process.execPath, [path.join(workspace, '.harness/runtime/local-context.mjs'), '--workspace', workspace], temporary, 2));
+  assert.equal(detachedLocal.status, 'pending');
   const detached = JSON.parse(run(process.execPath, [path.join(workspace, '.harness/runtime/check.mjs'), '--workspace', workspace]));
   assert.equal(detached.status, 'passed'); assert.equal(detached.hook_cases.length, 4);
   console.log('Packed CLI, typed library exports, offline consumer install, detached Skills, and generated harness runtimes passed.');

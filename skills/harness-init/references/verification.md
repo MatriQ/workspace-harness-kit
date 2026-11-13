@@ -4,6 +4,30 @@ Use this reference when validating an authored harness or refreshing one after p
 changes. Artifact integrity, command declarations, native host activation, tool access,
 application execution and release readiness are separate claims.
 
+## Replay the document handoff
+
+Choose questions representing selected tasks and consequential boundaries from the
+task coverage table. Start from the final Agent entry point, follow its routes and
+answer using the allowed documents/materials. Record the question, answer and cited
+basis, source baseline, missing mappings, extra source searches/human interventions,
+observed behavior and next action. If a key mapping must be rediscovered in source,
+count it as a documentation gap, repair the guide and replay affected questions.
+Do not count headings, file volume or a clean artifact check as semantic accuracy.
+
+The author can replay first. When an independent reader is available and authorized,
+give them the task, generated docs and permitted original material, not author
+conclusions or expected answers. Keep model, permissions, inputs and evaluation time
+conditions equal for baseline/candidate trials. Reuse the exercises in `evals/`;
+fixture checks are not actual Agent trials. Record unknown time/token cost as unknown.
+
+Report structural checks, task knowledge coverage, actual execution, host activation
+and online delivery separately. Content review cannot replace doctor evidence.
+Deliver independent completed material with explicit gaps; a workflow missing key
+answers is pending, even if its files and metadata pass. Machine paths, readiness,
+ports/profiles and execution summaries belong in the ignored local Markdown entry;
+keep raw evidence in its required ignored format and link it locally. Share only a
+sanitized summary. See [local context](local-context.md).
+
 ## Check documented commands
 
 `harness.mjs check` inspects generated Markdown inline code and shell fences for

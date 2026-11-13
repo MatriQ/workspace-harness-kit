@@ -16,3 +16,9 @@ sanitized evidence v1, including all required components and the business journe
 observed component artifacts, acceptance and status. A harness doctor probe can assert
 those fields while still executing this real local smoke. It does not contact a cloud
 environment or establish native agent activation.
+
+The optional claim scenario uses the source in `claims.py` (API), `sync_claims.py`
+(worker) and `business.py` (e2e), in their respective repositories. Inspect actual
+entry points before choosing commands. The e2e scenario owns a disposable SQLite
+database and loopback server, distinguishes health/request/final outcome and checks
+worker replay without claiming production access.

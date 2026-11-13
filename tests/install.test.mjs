@@ -144,5 +144,5 @@ test('an installer-owned Python Skill upgrades to the Node bundle', t => {
   installer.apply(installer.plan(destination, ['harness-init']));
   assert.equal(fs.existsSync(path.join(destination, 'harness-init/scripts/workspace.py')), false);
   assert.equal(fs.existsSync(path.join(destination, 'harness-init/scripts/workspace.mjs')), true);
-  assert.equal(checkInstallation(destination).skills['harness-init'], '0.2.0');
+  assert.equal(checkInstallation(destination).skills['harness-init'], '0.3.0');
 });

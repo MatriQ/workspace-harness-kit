@@ -96,7 +96,12 @@ export interface WorkspaceManifest {
   relationships?: Relationship[];
   capabilities?: Capability[];
   onboarding?: OnboardingProfile;
+  local_context?: string;
   [key: string]: unknown;
 }
 export interface Binding { path: string; git_common_dir: string }
-export interface LocalManifest { schema_version: 1; checkouts: Record<string, Binding> }
+export interface LocalManifest {
+  schema_version: 1; checkouts: Record<string, Binding>; machine?: string;
+  tools?: Record<string, unknown>; environment?: Record<string, unknown>; access?: Record<string, unknown>;
+  execution?: Record<string, unknown>; state?: Record<string, unknown>; onboarding_status?: Record<string, unknown>;
+}

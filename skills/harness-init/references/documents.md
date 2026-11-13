@@ -100,7 +100,7 @@ Use links to existing authority in preference to copying the same rule or comman
 
 A command entry has a working directory, target, prerequisites, exact command, expected result, failure inspection entry, and repository source. A configuration entry has an environment, required flag, variable name, provider, and effect when missing. A release guide links to its workflow and observed run evidence. Keep placeholders explicit until a real source is available.
 
-Name `.harness/workspace.local.json` and `checkouts[memberId].path` when routing to
+Name the selected ignored `*.local.md` entry and its managed `checkouts[memberId].path` when routing to
 members; do not make readers discover the ignored registry by trial and error.
 Explain [rebinding after relocation](workspace.md#relocate-local-checkouts) when relevant.
 Keep procedures reusable and execution records separately identifiable. A prior run
@@ -172,3 +172,21 @@ The helper binds a review to that member's sources and the workspace onboarding
 profile; it does not infer cross-repository dependencies between prose sections.
 Record the actual external source references in each central guide and include them
 in the human review on refresh.
+
+## Author usable task routes
+
+Use the task coverage table to select content, not a fixed manual catalog. Service
+explanations cover responsibility, relevant entry points, data/configuration bounds,
+native commands, characteristic symptoms and sources. Business-flow explanations
+follow selected calls/events, reads/writes, region differences and observation points;
+a small project can keep them in architecture. Add data/API guidance only for actual
+shared writes, contracts, migrations or compatibility concerns. Do not infer global
+table ownership or create database/payment/flag sections for projects without them.
+
+Operational procedures state inputs, target identification, query bounds, how to
+interpret results and the next branch. Unknown resource names or escalation owners
+need a verification route rather than a plausible substitute. Derive project Skills
+and commands from recurring tasks: input, prerequisites, steps, evidence and failure
+handling. Reuse existing issue/PR/release practices; do not copy another team's task
+labels, collaboration systems or approval rules. Keep each fact in one authoritative
+guide and link procedures to it. Machine-adopted values stay in [local context](local-context.md).

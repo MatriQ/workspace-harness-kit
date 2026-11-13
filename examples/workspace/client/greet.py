@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 import subprocess
 from urllib.error import URLError
-from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import ProxyHandler, build_opener, urlopen
 
 
 def main():
@@ -24,7 +24,8 @@ def main():
     query = urlencode({"name": arguments.name})
     endpoint = f"{arguments.base_url.rstrip('/')}/v1/greetings?{query}"
     try:
-        with urlopen(endpoint, timeout=5) as response:
+        opener = build_opener(ProxyHandler({})).open if urlsplit(endpoint).hostname in {"localhost", "127.0.0.1", "::1"} else urlopen
+        with opener(endpoint, timeout=5) as response:
             greeting = json.load(response)
     except (URLError, TimeoutError) as error:
         parser.exit(1, f"Greeting request failed: {error}\n")

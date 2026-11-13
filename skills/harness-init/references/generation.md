@@ -10,7 +10,7 @@ and checks the resulting artifacts. It does not infer business rules from filena
 Set `harness.layout` and the spec's `layout` to `centralized` for one `.harness/`
 directory, a regular `AGENTS.md`, and a generated `CLAUDE.md -> AGENTS.md` symlink.
 Workflows are reached through the canonical entry point. Use `native` for native
-Skills/commands/agents or selected settings/hooks/CI. Omission remains `native` for
+Skills/commands/agents or selected settings/hooks. Omission remains `native` for
 saved-spec compatibility; new initialization records its choice explicitly.
 
 Infer the current agent and existing conventions, then resolve genuine ambiguity.
@@ -62,7 +62,7 @@ to ensure the old names do not reappear.
 | Field | Contract |
 | --- | --- |
 | `schema_version`, `name`, `targets` | Version `1`, workspace title, selected supported hosts |
-| `layout` | `centralized` or `native` (legacy default); centralized guides use `.harness/docs/`, resources use `.harness/resources/`, and native settings/hooks/CI are rejected |
+| `layout` | `centralized` or `native` (legacy default); centralized guides use `.harness/docs/`, resources use `.harness/resources/`, and native settings/hooks are rejected |
 | `documentation_root` | Selected directory for all new AI-authored project documents; save it explicitly and match the onboarding root. Defaults are `.harness/docs` for centralized layout and `docs/harness` for native layout. Centralized roots may use a subdirectory of `.harness/docs`. Explicit roots constrain generated documents; existing source-only guides may stay elsewhere after the user's choice |
 | `language` | Optional `en` (default) or `zh-CN` for generated entry-point instructions and routing labels; author document bodies and descriptions in the requested language |
 | `sources` | Reviewed `{path}` workspace inputs or `{member, path}` inputs resolved through the existing local registry; no absolute checkout paths |
@@ -183,3 +183,18 @@ CI execution, and application/environment checks. Helper success establishes the
 first layer. Use the [target checks](agent-targets.md) to finish or accurately retain
 pending activation work. A previously installed agent or a new hook trust decision
 cannot be inferred from a file's existence.
+
+## Task coverage and optional local context
+
+Derive authored procedures from the task coverage table: meaningful inputs, confirmed
+preconditions, bounded steps, distinguishable results, evidence and failure handoff.
+Keep shared service/data facts in one authoritative location; link task procedures
+to it and map relevant `sources`/`provenance`. A directory of generic procedures is
+not evidence of a usable workflow. Existing project collaboration remains authoritative.
+
+Never include `*.local.md` as generated documents, resources, sources or projections.
+The entry point references the selected local context as an optional machine resource;
+shared checks do not require its presence. Local configuration owns its content and
+uses the common parser, ignore check and migration workflow. CI can be explicitly
+selected with centralized documents; settings/hooks still require native integration.
+Artifact integrity, semantic handoff, real execution and hosted CI remain separate.

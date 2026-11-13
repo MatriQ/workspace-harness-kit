@@ -61,6 +61,12 @@ function validateArtifact(value) {
   else requireEvidence(!["latest", "main", "master", "head", "unknown"].includes(value.value.toLowerCase()) && !/[\s*^~<>=]/.test(value.value), "Artifact must be an exact resolved version or revision");
 }
 
+// src/core/local-context.ts
+var LEGACY_LOCAL_CONTEXT = ".harness/workspace.local.json";
+function isLocalResource(file) {
+  return file.endsWith(".local.md") || file.endsWith(".local.json") || file === LEGACY_LOCAL_CONTEXT || file.startsWith(".harness/local-backups/") || file.startsWith(".harness/local-evidence/");
+}
+
 // src/core/verification.ts
 function validateDiagnosticSpec(value, relative) {
   object(value, "verification", ["max_age_seconds", "checks"]);
@@ -116,6 +122,7 @@ function identifier2(value) {
 }
 function harnessPath(value) {
   requireHarness(typeof value === "string" && !/[\\:\x00-\x1f\x7f]/.test(value) && value.split("/").every((part) => part && part !== "." && part !== ".."), "Expected a normalized relative harness path");
+  requireHarness(!isLocalResource(value), "Local context cannot be a shared artifact or source");
   requireHarness(!value.split("/").some((part) => [".git", "node_modules"].includes(part)), "Harness paths cannot address Git metadata or dependencies");
 }
 function list(value, name) {
@@ -152,7 +159,7 @@ function validateHarnessSpec(value) {
     if (value.layout === "centralized") requireHarness(value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Centralized documentation_root must be .harness/docs or a subdirectory");
     else requireHarness(!value.documentation_root.startsWith(".harness/") || value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Documentation cannot use reserved harness state directories");
   }
-  if (value.layout === "centralized") requireHarness(!["settings", "hooks", "ci"].some((part) => part in value), "Centralized layout does not register native settings, hooks or CI; choose native layout for those integrations");
+  if (value.layout === "centralized") requireHarness(!["settings", "hooks"].some((part) => part in value), "Centralized layout does not register native settings or hooks; choose native layout for those integrations");
   list(value.sources, "sources");
   for (const source of value.sources) {
     shape(source, "source", ["member", "path"]);

@@ -1,3 +1,4 @@
+import { isLocalResource } from './local-context.js';
 import type { Capability, Component, DocumentReview, Fingerprint, Member, Relationship } from './types.js';
 import { equal, fullMatch, isObject } from './json.js';
 import { identifier, requireEvidence, uniqueNames } from './evidence.js';
@@ -26,7 +27,7 @@ export function schema(value: unknown): asserts value is Record<string, unknown>
 }
 export function docRefs(value: unknown): asserts value is string[] {
   requireWorkspace(Array.isArray(value), 'Document references must be a list of relative paths.');
-  for (const item of value) relativePath(item);
+  for (const item of value) { relativePath(item); requireWorkspace(!isLocalResource(item), 'Local context cannot be a shared document or source reference'); }
 }
 export function fingerprints(value: unknown): Record<string, string> {
   requireWorkspace(Array.isArray(value), 'Source fingerprints must be a list.');
@@ -34,6 +35,7 @@ export function fingerprints(value: unknown): Record<string, string> {
   for (const source of value) {
     requireWorkspace(isObject(source), 'Each source fingerprint must be an object.');
     const path = relativePath(source.path), digest = source.sha256;
+    requireWorkspace(!isLocalResource(path), 'Local context cannot enter shared source or document review fingerprints');
     requireWorkspace(!entries.has(path) && typeof digest === 'string' && fullMatch(/^[a-f0-9]{64}$/, digest), `Invalid or repeated source fingerprint: ${path}`);
     entries.set(path, digest);
   }
@@ -100,7 +102,8 @@ export function componentModel(value: Record<string, unknown>, members: Record<s
   return { components: Object.fromEntries(components), orders, capabilities: capabilities as Capability[] };
 }
 export function validateManifest(value: unknown): Record<string, Member> {
-  schema(value); validateLanguage(value.language); docRefs(optional(value, 'documents', []));
+  schema(value); validateLanguage(value.language);
+  if ('local_context' in value) requireWorkspace(typeof value.local_context === 'string' && value.local_context.endsWith('.local.md') && !!relativePath(value.local_context), 'Expected a relative *.local.md entry'); docRefs(optional(value, 'documents', []));
   if ('onboarding' in value) validateOnboarding(value.onboarding);
   requireWorkspace(Array.isArray(value.members), 'Workspace members must be a list.');
   const members = new Map<string, Member>(), remotes = new Set<string>();
@@ -136,6 +139,7 @@ export function validateManifest(value: unknown): Record<string, Member> {
       validateId(dep); requireWorkspace(dep !== id && members.has(dep), `Invalid dependency for ${id}: ${dep}`);
     }
   }
+  if ('workspace_member' in value) requireWorkspace(typeof value.workspace_member === 'string' && members.has(value.workspace_member), 'Unknown workspace member');
   const result = Object.fromEntries(members);
   componentModel(value, result);
   return result;

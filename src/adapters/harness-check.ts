@@ -1,3 +1,4 @@
+import { localContextEntry, localContextPath, MissingLocalContext } from './local-context.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseToml } from 'smol-toml';
@@ -17,7 +18,7 @@ export function checkHarness(root: string, local = false) {
   const errors: string[] = [], pending: string[] = [];
   const documents: Array<{ path: string; body: string }> = [];
   const spec = readJson(within(root, HARNESS_SPEC)); validateHarnessSpec(spec);
-  const rendered = renderHarness(spec, { check: '', hook: '', notices: '' });
+  const rendered = renderHarness(spec, { check: '', hook: '', notices: '', localContext: localContextEntry(root) });
   const configuration = harnessConfiguration(spec, rendered);
   const expected = new Set(rendered.map(artifact => artifact.path));
   try { assertSelection(root, spec); } catch (error) { errors.push((error as Error).message); }
@@ -58,6 +59,7 @@ export function checkHarness(root: string, local = false) {
           if (/^[a-z][a-z0-9+.-]*:/i.test(link)) continue;
           const [pathname, fragment] = link.split('#');
           const relative = path.relative(root, pathname ? path.resolve(path.dirname(file), decodeURIComponent(pathname)) : file).split(path.sep).join('/');
+          if (relative.endsWith('.local.md')) { localContextPath(relative); continue; } // Declared optional machine resource, never a shared artifact.
           harnessPath(relative);
           const target = within(root, relative), info = stat(target);
           if (!info) errors.push(`Broken link in ${record.path}: ${link}`);
@@ -70,7 +72,7 @@ export function checkHarness(root: string, local = false) {
   for (const source of receipt.sources) {
     if (source.member && !local) { pending.push(`External source requires --local: ${source.member}/${source.path}`); continue; }
     try { if (fileHash(sourcePath(root, source)) !== source.sha256) errors.push(`Source changed: ${source.member ?? 'workspace'}/${source.path}`); }
-    catch { errors.push(`Source unavailable: ${source.member ?? 'workspace'}/${source.path}`); }
+    catch (error) { if (error instanceof MissingLocalContext) pending.push(error.message); else errors.push(`Source unavailable: ${source.member ?? 'workspace'}/${source.path}: ${(error as Error).message}`); }
   }
   const cases = (spec.hooks?.cases ?? []).map(example => {
     const actual = evaluateGuard(spec.hooks!.guards, example.input).decision;

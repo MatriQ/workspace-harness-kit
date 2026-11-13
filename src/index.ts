@@ -12,3 +12,5 @@ export { validateReadinessPlan, READINESS_AREAS } from './core/readiness.js';
 export type { ReadinessPlan, ReadinessArea } from './core/readiness.js';
 export { requiredDocumentTopics, DOCUMENT_TOPICS } from './core/documentation.js';
 export type { DocumentTopic, DocumentCoverage } from './core/documentation.js';
+
+export { parseLocalContext, renderLocalContext, validateLocalContext } from './core/local-context.js';

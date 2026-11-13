@@ -7,6 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const check = process.argv.includes('--check');
 const entries = {
   'src/index.ts': 'dist/index.js',
+  'src/adapters/local-context.ts': 'dist/local-context.js',
   'src/adapters/workspace.ts': 'dist/workspace.js',
   'src/adapters/collect.ts': 'dist/collect.js',
   'src/adapters/install.ts': 'dist/install.js',
@@ -18,6 +19,7 @@ const entries = {
   'src/adapters/readiness.ts': 'dist/readiness.js',
   'src/evals.ts': 'dist/evals.js',
   'src/entries/cli.ts': 'dist/cli.mjs',
+  'src/entries/local-context.ts': 'skills/harness-init/scripts/local-context.mjs',
   'src/entries/workspace.ts': 'skills/harness-init/scripts/workspace.mjs',
   'src/entries/onboarding.ts': 'skills/harness-init/scripts/onboarding.mjs',
   'src/entries/harness.ts': 'skills/harness-init/scripts/harness.mjs',
@@ -33,7 +35,8 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 if (pkg.version !== fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim()) throw new Error('package.json and VERSION must match');
 const stale = [];
 const bundled = new Map();
-for (const [entry, output] of Object.entries(entries)) {
+const builds = [...Object.entries(entries), ...['harness-guide', 'harness-setup-local', 'harness-test', 'harness-verify-release'].map(skill => ['src/entries/local-context.ts', `skills/${skill}/scripts/local-context.mjs`])];
+for (const [entry, output] of builds) {
   if (check && output.startsWith('dist/')) continue;
   const executable = entry.startsWith('src/entries/');
   const result = await build({ absWorkingDir: root, entryPoints: [entry], outfile: output, bundle: true, platform: 'node',
@@ -53,10 +56,7 @@ for (const [entry, output] of Object.entries(entries)) {
   }
 }
 // Parser licenses travel with copied Skills and the npm artifact, including transitive dependencies.
-const licenseGroups = {
-  'skills/harness-init/scripts/THIRD-PARTY-NOTICES.txt': [...new Set([...bundled.entries()].filter(([file]) => file.startsWith('skills/harness-init/scripts/')).flatMap(([, dependencies]) => dependencies))].sort(),
-  'skills/harness-verify-release/scripts/THIRD-PARTY-NOTICES.txt': bundled.get('skills/harness-verify-release/scripts/collect.mjs'),
-};
+const licenseGroups = Object.fromEntries(['harness-init', 'harness-guide', 'harness-setup-local', 'harness-test', 'harness-verify-release'].map(skill => [`skills/${skill}/scripts/THIRD-PARTY-NOTICES.txt`, [...new Set([...bundled.entries()].filter(([file]) => file.startsWith(`skills/${skill}/scripts/`)).flatMap(([, dependencies]) => dependencies))].sort()]));
 const notices = [];
 for (const [output, dependencies] of Object.entries(licenseGroups)) {
   const sections = dependencies.map(name => {

@@ -18,3 +18,40 @@ Reuse existing authorization. A readiness verdict does not establish deployment 
 5. Record and evaluate the outcome using [evidence v1 and the bundled helpers](references/evidence-format.md). Run `scripts/evidence.mjs` against the record; when a workspace capability is declared, add `--workspace` to check its required components. Preserve per-check and attempt results, including recovered failures. Report missing conditions and the next action. If verifying a rollback, record the previous known artifact as the expected result and independently verify the restored running version and affected behavior.
 
 Preserve separate deployment, version, technical smoke, and business acceptance results. Mark the complete release passed only when every required check has positive evidence. Keep credentials, personal data, raw HTTP responses, and full environment or container dumps out of the record.
+
+
+Consume the initialized task coverage table, evidenced capability relationships and
+business acceptance entry points. Preserve unobserved dependencies in the frozen
+scope and report their missing evidence. `consumes` does not establish release order;
+use explicit `deploys_after` contracts or a reviewed migration plan. Read personal
+access profiles and observations from local context and verify the actual current
+target; missing access leaves the relevant observation pending. A guide, relation,
+fixture or healthy process cannot supply a deployed business acceptance result.
+
+## Machine-local context
+
+Before work needing checkout paths, tool observations, port overrides, local service
+addresses, CLI profiles or execution state, read the workspace registry's optional
+`local_context` entry. Its default is `.harness/docs/workspace.local.md`; preserve an
+established `AGENTS.local.md` or explicitly chosen `*.local.md`. The filename does
+not imply automatic host loading. Use this Skill's bundled common helper:
+
+```sh
+node "$SKILL/scripts/local-context.mjs" --workspace "$WORKSPACE"
+```
+
+The helper validates the versioned JSON block, Git identity and ignore/tracking
+status, resolving paths from the selected workspace, not the shell directory. A
+missing binding is pending; supply the checkout using workspace plan/apply. Legacy
+`.harness/workspace.local.json` is a read-only compatibility input. Use workspace
+migration before maintaining local state; never double-write a JSON path map.
+
+Write machine observations through `--patch "$LOCAL_PATCH"`, where the temporary
+JSON patch contains the relevant `tools`, `environment`, `access`, `execution` or
+`state` section. Keep one authority per value and preserve handwritten Markdown.
+Tools still use their required `.env`, logs and JSON evidence formats; reference
+those ignored artifacts from the local entry. Credential values remain in the
+existing environment/keychain mechanism. Shared guides contain required versions,
+configuration names and project defaults, not personal adopted values or readiness.
+Reverify bindings and relevant observations after changing machine, checkout or
+access target. Never copy another machine's successful startup/login/test state.

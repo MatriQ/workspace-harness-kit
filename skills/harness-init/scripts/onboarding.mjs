@@ -43,7 +43,7 @@ function validateHarnessSelection(value) {
   if ("artifacts" in value) {
     shape(value.artifacts, "harness.artifacts", [...HARNESS_PARTS]);
     requireHarness(Object.values(value.artifacts).every((item) => typeof item === "boolean"), "Artifact choices must be booleans; omit unanswered choices");
-    if (value.layout === "centralized") requireHarness(!["settings", "hooks", "ci"].some((part) => value.artifacts[part] === true), "Centralized layout does not register native settings, hooks or CI; choose native layout for those integrations");
+    if (value.layout === "centralized") requireHarness(!["settings", "hooks"].some((part) => value.artifacts[part] === true), "Centralized layout does not register native settings or hooks; choose native layout for those integrations");
   }
 }
 

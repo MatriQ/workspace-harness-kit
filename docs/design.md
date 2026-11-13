@@ -194,3 +194,23 @@ point and updates callers before retiring old locations. Mutable project task st
 may share `.harness/` but remains outside generated receipts. Host evidence for
 centralized mode concerns entry-point loading and following linked instructions,
 not native discovery or hook registration.
+
+## Local context and task handoff
+
+The optional portable `local_context` path selects a machine-local Markdown entry.
+Its strict versioned JSON block owns checkout bindings and local state; shared
+registry/spec/receipts contain no adopted machine values. Reads and writes share
+one parser and Git identity/ignore checks. Legacy JSON merges only without conflict,
+is backed up before retirement, and is never dual-written. Missing local bindings
+are pending for local operations, not broken optional links in shared checks.
+Doctor binds observations to machine, actual Git directories and relevant environment;
+handwritten notes do not alter that binding. Local entries and recovery copies are
+excluded from shared sources and document reviews.
+
+A task coverage table links requested questions to implementation/data/API boundaries,
+source baselines, answer sections, verification and gaps. Structural document
+coverage intentionally does not attest those answers. Replay the final document
+handoff separately; metadata/fixture success cannot establish an unavailable or
+failed business journey. Existing typed graph relationships remain declarations:
+consumption does not imply startup/deployment order. Centralized documents can
+explicitly select CI without native host settings/hooks or a hosted-run claim.

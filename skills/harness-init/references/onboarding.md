@@ -179,7 +179,7 @@ preference does not expand the write scope of `register` or `analyze` selections
 Write guides from the [activity blueprint](documents.md#activity-driven-guides).
 The toolchain and environment guides explain how to repeat setup; machine readiness
 belongs in an established ignored local status file. When using the workspace's
-ignored `workspace.local.json`, an `onboarding_status` object can hold sanitized
+ignored local Markdown entry, an `onboarding_status` object can hold sanitized
 results; preserve `schema_version`, `checkouts` and unrelated fields. Verify ignore
 rules before adding local status. Do not mark a status passed from a user's intended
 configuration or a version probe alone.
@@ -203,3 +203,10 @@ remaining work. No repetitive interview or blanket reinstall is needed.
 Document reviews bind to the current onboarding profile as well as source files.
 Changing the selected activities, platforms or placement makes earlier reviews
 pending until the relevant guides have been reviewed again.
+
+Task knowledge coverage is handed over separately from document structure and doctor
+execution. Replay representative questions from the final entry point using the
+[handoff procedure](verification.md#replay-the-document-handoff). Missing essential
+answers keep the affected workflow pending. All machine preparation, access and
+execution state is maintained in the [local Markdown entry](local-context.md), not
+in shared background, specifications, source fingerprints or generated receipts.

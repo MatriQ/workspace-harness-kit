@@ -1,3 +1,4 @@
+import { DEFAULT_LOCAL_CONTEXT, isLocalResource } from './local-context.js';
 import { fullMatch, isObject, json } from './json.js';
 import { validateDiagnosticSpec } from './verification.js';
 import type { DiagnosticSpec } from './verification.js';
@@ -58,6 +59,7 @@ function identifier(value: unknown): asserts value is string {
 }
 export function harnessPath(value: unknown): asserts value is string {
   requireHarness(typeof value === 'string' && !/[\\:\x00-\x1f\x7f]/.test(value) && value.split('/').every(part => part && part !== '.' && part !== '..'), 'Expected a normalized relative harness path');
+  requireHarness(!isLocalResource(value), 'Local context cannot be a shared artifact or source');
   requireHarness(!value.split('/').some(part => ['.git', 'node_modules'].includes(part)), 'Harness paths cannot address Git metadata or dependencies');
 }
 function list(value: unknown, name: string): asserts value is unknown[] { requireHarness(Array.isArray(value), `${name} must be a list`); }
@@ -72,7 +74,7 @@ export function validateHarnessSelection(value: unknown): asserts value is Harne
   if ('artifacts' in value) {
     shape(value.artifacts, 'harness.artifacts', [...HARNESS_PARTS]);
     requireHarness(Object.values(value.artifacts).every(item => typeof item === 'boolean'), 'Artifact choices must be booleans; omit unanswered choices');
-    if (value.layout === 'centralized') requireHarness(!['settings', 'hooks', 'ci'].some(part => (value.artifacts as Record<string, unknown>)[part] === true), 'Centralized layout does not register native settings, hooks or CI; choose native layout for those integrations');
+    if (value.layout === 'centralized') requireHarness(!['settings', 'hooks'].some(part => (value.artifacts as Record<string, unknown>)[part] === true), 'Centralized layout does not register native settings or hooks; choose native layout for those integrations');
   }
 }
 function resources(value: unknown): asserts value is TextResource[] {
@@ -94,7 +96,7 @@ export function validateHarnessSpec(value: unknown): asserts value is HarnessSpe
     if (value.layout === 'centralized') requireHarness(value.documentation_root === '.harness/docs' || value.documentation_root.startsWith('.harness/docs/'), 'Centralized documentation_root must be .harness/docs or a subdirectory');
     else requireHarness(!value.documentation_root.startsWith('.harness/') || value.documentation_root === '.harness/docs' || value.documentation_root.startsWith('.harness/docs/'), 'Documentation cannot use reserved harness state directories');
   }
-  if (value.layout === 'centralized') requireHarness(!['settings', 'hooks', 'ci'].some(part => part in value), 'Centralized layout does not register native settings, hooks or CI; choose native layout for those integrations');
+  if (value.layout === 'centralized') requireHarness(!['settings', 'hooks'].some(part => part in value), 'Centralized layout does not register native settings or hooks; choose native layout for those integrations');
   list(value.sources, 'sources');
   for (const source of value.sources) {
     shape(source, 'source', ['member', 'path']); harnessPath(source.path);
@@ -255,7 +257,7 @@ export function harnessConfiguration(spec: HarnessSpec, artifacts: GeneratedArti
     parts,
   };
 }
-export interface HarnessRuntimes { check: string; hook: string; notices: string }
+export interface HarnessRuntimes { check: string; hook: string; notices: string; localContext?: string; localContextRuntime?: string }
 function frontmatter(item: HarnessProcedure, extra = ''): string { return `---\nname: ${JSON.stringify(item.name)}\ndescription: ${JSON.stringify(item.description)}\n${extra}---\n\n${item.body.trim()}\n`; }
 export function renderHarness(spec: unknown, runtimes: HarnessRuntimes): GeneratedArtifact[] {
   validateHarnessSpec(spec);
@@ -319,7 +321,7 @@ export function renderHarness(spec: unknown, runtimes: HarnessRuntimes): Generat
     }
   }
   const introduction = chinese
-    ? '在选定的工作区中遵循已有说明，并通过现有的本地映射定位成员仓库。'
+    ? '在选定的工作区中遵循已有说明，并通过受忽略的本地 Markdown 入口定位成员仓库。'
     : 'Use the selected workspace and its existing instructions. Resolve member checkout paths through the established local mapping.';
   const verification = chinese
     ? '配置与本地验证参见 [harness 配置](.harness/harness.json)。修改后运行 `node .harness/runtime/check.mjs --workspace .`。检查通过不代表 Agent 已加载配置，也不代表已具备部署条件。'
@@ -331,7 +333,11 @@ export function renderHarness(spec: unknown, runtimes: HarnessRuntimes): Generat
   const documentPolicy = chinese
     ? `## 文档存放规则\n\n后续所有由 AI 新增的项目文档（包括计划、设计、分析、验证报告和交接记录）必须放在 \`${documentRoot}/\`，按主题组织并更新该目录的索引。 本仓库内的文件和工作流按用途命名，省略重复的仓库名或项目名前缀；只有需要区分组件时才加限定词。不得在仓库根目录或其他目录新增此类文档或重复副本。AGENTS.md 与宿主入口只保留规则和导航；工具要求的配置、Skill 和运行文件按各自约定存放。\n\n发现其他位置的现有文档时，先列出原路径、拟迁入路径和需要更新的引用，询问用户选择迁入哪些文档、保留哪些文档；已有明确选择时直接沿用。未经选择不移动或删除原文，保留原位的文档通过链接引用。迁移须保留内容，检查重名、修复相对链接及调用方，再核对来源与文档完整性。`
     : `## Documentation location\n\nAll new project documentation written by AI, including plans, designs, analyses, validation reports and handoff notes, must live under \`${documentRoot}/\`. Organize it by topic and update that directory's index. Name repository-local files and workflows by purpose, without repeating the repository or product name; add a component qualifier only when needed to distinguish workflows. Do not create these documents or duplicate copies at the repository root or elsewhere. AGENTS.md and host entry points contain rules and navigation; tool-required configuration, Skills and runtime files retain their prescribed locations.\n\nWhen existing documents are found elsewhere, list their current paths, proposed destinations and affected references, then ask the user which to move and which to keep. Reuse an explicit prior choice. Do not move or delete unselected originals; link to documents kept in place. For a selected move, preserve content, check collisions, repair relative links and callers, then verify sources and documentation completeness.`;
-  const entry = `# ${spec.name}\n\n${introduction}${routing}\n\n${documentPolicy}\n\n${routes.join('\n')}\n\n${verification}\n`;
+  const localContext = runtimes.localContext ?? DEFAULT_LOCAL_CONTEXT;
+  const localPolicy = chinese
+    ? `需要本机仓库路径、环境、工具或个人访问上下文时，先读取[可选本地入口](${localContext})。本地文件按 *.local.md 忽略，由本地配置流程维护，不属于共享生成产物；使用 \`node .harness/runtime/local-context.mjs --workspace .\` 统一解析和校验身份。新机器缺少文件时补齐绑定并重新验证，不继承他人的就绪状态。凭据值继续保存在环境变量或系统凭据存储中。`
+    : `For machine checkout paths, environment, tools or personal access context, first read the [optional local entry](${localContext}). Files matching *.local.md are ignored and maintained by local configuration, outside shared generation. Use \`node .harness/runtime/local-context.mjs --workspace .\` for the shared parser and identity checks. On a new machine, supply bindings and reverify readiness; do not inherit another machine's observations. Keep credential values in environment variables or existing credential stores.`;
+  const entry = `# ${spec.name}\n\n${introduction}${routing}\n\n${documentPolicy}\n\n${localPolicy}\n\n${routes.join('\n')}\n\n${verification}\n`;
   if (spec.targets.includes('codex') || spec.layout === 'centralized') add('AGENTS.md', 'entrypoint', entry, 'entrypoint');
   if (spec.targets.includes('claude-code')) add('CLAUDE.md', spec.layout === 'centralized' ? 'entrypoint-alias' : 'entrypoint', spec.layout === 'centralized' ? 'AGENTS.md' : entry, spec.layout === 'centralized' ? 'symlink' : 'entrypoint');
   if (spec.targets.includes('codex') && spec.settings?.codex) add('.codex/config.toml', 'settings', json(spec.settings.codex), 'toml-merge');
@@ -365,6 +371,7 @@ export function renderHarness(spec: unknown, runtimes: HarnessRuntimes): Generat
   add('.harness/runtime/check.mjs', 'runtime', runtimes.check, 'text', true);
   if (spec.hooks) add('.harness/runtime/hook.mjs', 'runtime', runtimes.hook, 'text', true);
   add('.harness/runtime/THIRD-PARTY-NOTICES.txt', 'runtime', runtimes.notices);
+  add('.harness/runtime/local-context.mjs', 'runtime', runtimes.localContextRuntime ?? '', 'text', true);
   add('.harness/harness.json', 'spec', json(spec));
   unique(artifacts.map(artifact => artifact.path), 'generated paths');
   const paths = artifacts.map(artifact => artifact.path.toLowerCase()).sort();

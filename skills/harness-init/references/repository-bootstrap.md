@@ -85,8 +85,7 @@ CLAUDE.md -> AGENTS.md             Relative symlink for the selected Claude host
 
 Only selected categories are generated. Keep all generated documents in
 `.harness/docs/` and authored resources in `.harness/resources/`. This layout does
-not register native Skills, slash commands or agents. It rejects settings, hooks
-and CI rather than silently emitting nonfunctional configuration. Host activation
+not register native Skills, slash commands or agents. It rejects native settings and hooks rather than silently emitting nonfunctional configuration. Host activation
 means loading the canonical entry point and following its linked procedures.
 
 When consolidating an existing harness, first inspect ownership and callers and

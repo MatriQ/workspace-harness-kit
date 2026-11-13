@@ -56,9 +56,9 @@ def main():
         manifest_path = demo / ".harness/workspace.json"
         manifest = json.loads(manifest_path.read_text())
         assert manifest["onboarding"] == profile
-        manifest["capabilities"] = [{"id": "greeting", "requires": ["api", "client", "worker"]}]
+        manifest["capabilities"] = [{"id": "greeting", "requires": ["api", "client", "worker"]}, {"id": "local-claim-fixture", "requires": ["api", "worker"], "scope": "Disposable local SQLite/outbox scenario; hosted dependencies unverified"}]
         manifest["relationships"] = [{"from": "client", "to": "api", "type": "starts_after"},
-                                     {"from": "worker", "to": "client", "type": "consumes"}]
+                                     {"from": "worker", "to": "client", "type": "consumes"}, {"from": "worker", "to": "api", "type": "consumes"}, {"from": "api", "to": "e2e", "type": "validated_by"}]
         manifest_path.write_text(json.dumps(manifest, indent=2))
         checked = json.loads(run(helper, "check", "--workspace", demo, "--local", "--strict"))
         assert checked["document_reviews"][0]["status"] == "current"
@@ -86,9 +86,14 @@ def main():
                                  "--member", "e2e", "analyze", demo / "e2e",
                                  "--member", "product-docs", "analyze", demo / "product-docs"))
         run(helper, "apply", "--plan", plan_path)
+        coordinator_path = coordinator / ".harness/workspace.json"
+        coordinator_manifest = json.loads(coordinator_path.read_text())
+        coordinator_manifest["capabilities"] = manifest["capabilities"]
+        coordinator_manifest["relationships"] = manifest["relationships"]
+        coordinator_path.write_text(json.dumps(coordinator_manifest, indent=2))
         spec = json.loads((root / "installed/harness-init/assets/harness-complete.json").read_text())
         spec["sources"].append({"member": "api", "path": "README.md"})
-        for member, source in (("api", "serve.py"), ("client", "greet.py"), ("worker", "consume.py"), ("e2e", "smoke.py")):
+        for member, source in (("api", "serve.py"), ("client", "greet.py"), ("worker", "consume.py"), ("e2e", "smoke.py"), ("api", "claims.py"), ("worker", "sync_claims.py"), ("e2e", "business.py")):
             spec["sources"].append({"member": member, "path": source})
         spec["documents"][1]["body"] += "\n\nFrom the e2e checkout run `python3 smoke.py --json`."
         spec["command_checks"] = [{"document": "docs/harness/development.md", "command": "python3 smoke.py --json", "member": "e2e"}]
@@ -120,6 +125,9 @@ def main():
         assert doctor["status"] == "pending"
         assert all(item["status"] == "passed" for item in doctor["checks"] if item["layer"] in ("tool", "smoke"))
         assert all(item["status"] == "pending" for item in doctor["checks"] if item["layer"] in ("agent", "hook", "ci"))
+        business = json.loads(run(demo / "e2e/business.py"))
+        assert business["cases"]["denied"]["technical"] == "passed"
+        assert business["cases"]["denied"]["business"] == "failed"
         outcomes = {}
         for scenario, code in (("expected", 0), ("stale", 1), ("skipped", 2), ("business-failed", 1)):
             record = root / f"{scenario}.json"
@@ -130,7 +138,7 @@ def main():
                           "generated_harness": {"files": harness["files"], "hook_cases": len(harness["hook_cases"]),
                                                 "artifacts": harness["status"], "agent_activation": "not run",
                                                 "doctor_application_smoke": "passed", "doctor_overall": doctor["status"]},
-                          "document_review": "current", "release_scenarios": outcomes}, indent=2))
+                          "document_review": "current", "business_boundaries": {name: value["business"] for name, value in business["cases"].items()}, "release_scenarios": outcomes}, indent=2))
 
 
 if __name__ == "__main__":

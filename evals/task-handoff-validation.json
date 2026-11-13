@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "baseline": "bb98b48f6999a28486c5aec7f8c6d78970605440",
+  "candidate_source_version": "0.3.0",
+  "method": "Actual v1 compatibility upgrade and author-guided synthetic task replay; not a paired model/independent-reader trial",
+  "language": "zh-CN",
+  "members": {
+    "api": "analyze",
+    "client": "analyze",
+    "worker": "analyze",
+    "e2e": "analyze",
+    "product-docs": "analyze"
+  },
+  "existing_documents": "kept in place",
+  "migration": {
+    "consumer_upgrade_before_retirement": true,
+    "legacy_json_retired": true,
+    "recoverable_copy": true,
+    "markdown_recovery_copy": true,
+    "handwritten_local_prose_preserved": true,
+    "handwritten_entrypoint_preserved": true,
+    "one_markdown_authority": true,
+    "binding_from_other_cwd": true,
+    "no_personal_paths_in_shared_metadata": true,
+    "member_files_unchanged": true,
+    "unchanged_refresh": true
+  },
+  "structural_checks": "passed",
+  "task_knowledge": {
+    "review": "author replay",
+    "questions": [
+      "shared license writes",
+      "refusal despite health",
+      "regional asynchronous completion",
+      "historical worker contradiction",
+      "unverified hosted boundaries"
+    ],
+    "source_files": {
+      "api/claims.py": "0fdc72c75fd1c5b752ee8d587c3fe375dd95d918ae8b85180257601f9eeff5f5",
+      "api/serve.py": "3260d403cf802800c76bae3c47c4883a42d82b7a3d48facb7bdb5f5a6a3d0aa9",
+      "worker/sync_claims.py": "e80979db64dd4972b6926fcfab906ec15159b279d1adce1832b5699576d383c0",
+      "e2e/business.py": "3fc2b6cbe360fa7d6b51e7dbd6379510ea29f079451a1828687e6913fa41efe4",
+      "product-docs/README.md": "d09009e4621840d6941eab086909e2f3526d29fdb4c4c094877930fb1e71a828"
+    }
+  },
+  "execution": {
+    "scope": "isolated SQLite/outbox fixture, not a hosted broker or full external chain",
+    "cases": {
+      "accepted": {
+        "technical": "passed",
+        "business": "passed",
+        "request_status": 202,
+        "final_state": "active",
+        "pending_events": 0,
+        "cleanup": "completed"
+      },
+      "denied": {
+        "technical": "passed",
+        "business": "failed",
+        "request_status": 403,
+        "final_state": "missing",
+        "pending_events": 0,
+        "cleanup": "completed"
+      },
+      "signature-mismatch": {
+        "technical": "passed",
+        "business": "failed",
+        "request_status": 401,
+        "final_state": "missing",
+        "pending_events": 0,
+        "cleanup": "completed"
+      },
+      "wrong-worker-region": {
+        "technical": "passed",
+        "business": "failed",
+        "request_status": 202,
+        "final_state": "pending",
+        "pending_events": 1,
+        "cleanup": "completed"
+      }
+    }
+  },
+  "host_activation": "not run",
+  "hosted_ci": "not run",
+  "independent_reader": "not run",
+  "paired_model_comparison": "not run",
+  "model_agent_runs": 0,
+  "input_tokens": null,
+  "output_tokens": null,
+  "cost_usd": null,
+  "cli_steps": 28,
+  "sample_scope": "Synthetic role-mapped teaching fixture; no live repository enrollment or document-center directory required",
+  "role_abstraction": [
+    "caller/request producer",
+    "shared-state writer",
+    "asynchronous consumer",
+    "verification component",
+    "policy/specification source"
+  ],
+  "skill_snapshots": {
+    "baseline": {
+      "harness-guide": "e37c5cb729b5baa5688a729d29d10cb34c70239913ebee0a9d332be22d440b31",
+      "harness-init": "72fa27bbba5eb2ce9ca3d97320d04ecfd144506e4dba46fc9d0a4b8a7c765d2a",
+      "harness-setup-local": "9cd25e11a6bee7b3da8fb6f45d24304f0622ce02c8f4ea7de3027b53dadbf52e",
+      "harness-test": "36e01e0c01811b782aa2de375797d84c9b70150acfa2f4502eb16ac4a957dca1",
+      "harness-verify-release": "f90bd7c1b2873d7f4f7ecf8676a7055b90a933fc58ccd516e9644231110590a1"
+    },
+    "candidate": {
+      "harness-guide": "f5f4157eefaea7b29dba2f93b67c399549f91776718cd8a0feb75964fbbd485d",
+      "harness-init": "ddd5165360eb5568f498a87bf8a25e248fc2eabf807bf80d2bf02629fe3265aa",
+      "harness-setup-local": "71c3ca4a8780d62af029739250180356e50193a0ce2085c8971c40b004daf2c8",
+      "harness-test": "3b4f063b369ad94cac85edc53af636f9d7b32d061e1c7e4c20f1df48b1539431",
+      "harness-verify-release": "3d7836d9142a558ba2b23bf8b19e8c7d58bd881571b02a54994be08b9cf7a8fb"
+    }
+  }
+}

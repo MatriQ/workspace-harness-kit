@@ -1,6 +1,6 @@
 # Node runtime and migration
 
-The 0.2.0 source package uses Node.js 24+ for all harness helpers. Source code is
+The 0.3.0 source package uses Node.js 24+ for all harness helpers. Source code is
 strict TypeScript; distributed commands are ESM JavaScript. `VERSION` and
 `package.json` must agree. A source version does not imply an npm publication.
 
@@ -64,7 +64,7 @@ npm pack
 project; no registry release is assumed:
 
 ```sh
-npm install /path/to/workspace-harness-kit-0.2.0.tgz
+npm install /path/to/workspace-harness-kit-0.3.0.tgz
 ./node_modules/.bin/whk --version
 ./node_modules/.bin/whk workspace discover --directory "$PROJECTS"
 ./node_modules/.bin/whk evidence "$RECORD" --workspace "$WORKSPACE"

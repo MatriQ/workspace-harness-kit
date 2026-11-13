@@ -6,6 +6,8 @@ import { parse as parseToml, stringify as stringifyToml } from 'smol-toml';
 import { equal, isObject, json } from '../core/json.js';
 import { HARNESS_PARTS, harnessConfiguration, harnessDocumentRoot, harnessPath, renderHarness, requireHarness, validateHarnessSpec } from '../core/harness.js';
 import type { GeneratedArtifact, HarnessRuntimes, HarnessSpec } from '../core/harness.js';
+import { localContextEntry, memberBinding, readLocalContext, localBindingFingerprint } from './local-context.js';
+import { isLocalResource } from '../core/local-context.js';
 import { atomicWrite, fileHash, hash, readJson, resolvePath, stat, within } from './files.js';
 
 export const HARNESS_RECEIPT = '.harness/generated.json';
@@ -25,14 +27,12 @@ export function currentProfileHash(root: string): string | null {
   return isObject(manifest) && manifest.onboarding ? hash(json(manifest.onboarding)) : null;
 }
 export function sourcePath(root: string, source: { member?: string; path: string }): string {
+  requireHarness(!isLocalResource(source.path), 'Local context cannot be a shared source');
   if (!source.member) return within(root, source.path);
   const manifest = readJson(within(root, '.harness/workspace.json'));
   requireHarness(isObject(manifest) && Array.isArray(manifest.members) && manifest.members.some(member => isObject(member) && member.id === source.member), `Unregistered source member: ${source.member}`);
-  const local = readJson(within(root, '.harness/workspace.local.json'));
-  const bindings = isObject(local) && isObject(local.checkouts) ? local.checkouts : {};
-  const binding = bindings[source.member];
-  requireHarness(isObject(binding) && typeof binding.path === 'string', `Missing source binding: ${source.member}`);
-  return within(resolvePath(binding.path), source.path);
+  requireHarness(!isLocalResource(source.path), 'Local context cannot be a shared source');
+  return within(memberBinding(root, source.member).path, source.path);
 }
 export function readHarnessReceipt(root: string): HarnessReceipt | undefined {
   const file = within(root, HARNESS_RECEIPT);
@@ -98,15 +98,15 @@ function tomlSettings(original: string, patch: Record<string, unknown>): string 
   const replacement = `${start}\n${stringifyToml(owned).trim()}\n${end}`;
   return block ? original.replace(block, replacement) : replacement + '\n' + original;
 }
-function runtimeFiles(): HarnessRuntimes {
+function runtimeFiles(root: string): HarnessRuntimes {
   const folder = path.dirname(fileURLToPath(import.meta.url));
   const support = stat(path.join(folder, 'harness-check.mjs')) ? folder : path.resolve(folder, '../skills/harness-init/scripts');
-  return { check: fs.readFileSync(path.join(support, 'harness-check.mjs'), 'utf8'), hook: fs.readFileSync(path.join(support, 'harness-hook.mjs'), 'utf8'), notices: fs.readFileSync(path.join(support, 'THIRD-PARTY-NOTICES.txt'), 'utf8') };
+  return { localContext: localContextEntry(root), localContextRuntime: fs.readFileSync(path.join(support, 'local-context.mjs'), 'utf8'), check: fs.readFileSync(path.join(support, 'harness-check.mjs'), 'utf8'), hook: fs.readFileSync(path.join(support, 'harness-hook.mjs'), 'utf8'), notices: fs.readFileSync(path.join(support, 'THIRD-PARTY-NOTICES.txt'), 'utf8') };
 }
 function state(root: string): Record<string, string | null> {
-  return Object.fromEntries([HARNESS_RECEIPT, '.harness/workspace.json', '.harness/workspace.local.json'].map(name => {
+  return { local_binding: localBindingFingerprint(root), ...Object.fromEntries([HARNESS_RECEIPT, '.harness/workspace.json'].map(name => {
     const file = within(root, name); return [name, stat(file) ? fileHash(file) : null];
-  }));
+  })) };
 }
 function outputState(file: string) {
   const info = stat(file, false);
@@ -122,15 +122,17 @@ export function assertSelection(root: string, spec: HarnessSpec): void {
   const manifest = readJson(within(root, '.harness/workspace.json'), {});
   const onboarding = isObject(manifest) && isObject(manifest.onboarding) ? manifest.onboarding : {};
   if (onboarding.language !== undefined) {
-    const local = readJson(within(root, '.harness/workspace.local.json'), {});
-    const checkouts = isObject(local) && isObject(local.checkouts) ? local.checkouts : {};
+    const context = readLocalContext(root);
+    const checkouts = context.data.checkouts;
     const self = isObject(manifest) && Array.isArray(manifest.members) ? manifest.members.find(member => {
+      if (isObject(member) && manifest.workspace_member === member.id) return true;
       if (!isObject(member) || typeof member.id !== 'string') return false;
       const binding = checkouts[member.id];
       return isObject(binding) && typeof binding.path === 'string' && resolvePath(binding.path) === root;
     }) : undefined;
     const language = isObject(self) && typeof self.language === 'string' ? self.language : onboarding.language;
-    requireHarness((spec.language ?? 'en') === language, 'Generation language differs from the saved initialization choice');
+    const legacyLanguages = isObject(manifest) && Array.isArray(manifest.members) ? manifest.members.filter(isObject).map(member => member.language).filter(value => typeof value === 'string') : [];
+    requireHarness((spec.language ?? 'en') === language || (!self && context.format === 'missing' && legacyLanguages.includes(spec.language ?? 'en')), 'Generation language differs from the saved initialization choice');
   }
   if (isObject(onboarding.documentation) && typeof onboarding.documentation.root === 'string') {
     requireHarness(harnessDocumentRoot(spec) === onboarding.documentation.root, 'Generation documentation_root differs from the saved initialization choice');
@@ -162,7 +164,7 @@ export function makeHarnessPlan(root: string, input: unknown, options: HarnessPl
   });
   const files: PlannedFile[] = [], conflicts: HarnessPlan['conflicts'] = [], physical = new Map<string, GeneratedArtifact>();
   const aliases = new Map<string, string[]>();
-  for (const artifact of renderHarness(spec, runtimeFiles())) {
+  for (const artifact of renderHarness(spec, runtimeFiles(root))) {
     const file = within(root, artifact.path);
     if (spec.layout === 'centralized' && artifact.path === 'AGENTS.md') requireHarness(!stat(file, false)?.isSymbolicLink(), 'Centralized AGENTS.md must be a regular file; reconcile the existing entry-point alias first');
     const target = artifact.format === 'symlink' ? artifact.path : path.relative(root, resolvePath(file)).split(path.sep).join('/');

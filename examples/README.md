@@ -84,3 +84,18 @@ removed afterward; actual agent activation and hosted CI are not part of this ex
 The release cases are local exercises. Every non-skipped case makes real loopback
 HTTP requests and invokes the client and worker. Evidence for a hosted environment
 comes from its own deployment records, running artifact, and checks.
+
+The additional claim scenario uses a shared disposable SQLite license/outbox store.
+Its API rejects a disabled claim or wrong signature contract while health remains
+green; acceptance precedes the regional worker's final state change. A wrong worker
+region leaves the accepted event pending, and replay after completion is idempotent.
+The e2e launcher verifies these outcomes and cleanup. It models contract selection
+and local asynchronous boundaries, not cryptographic signatures, a hosted broker
+or production dependencies. The example harness includes task questions, a single
+authoritative data-flow explanation and source references for document handoffs.
+
+The materialized repositories are one concrete teaching topology. Abstract the
+caller/producer, shared-state writer, asynchronous consumer, verifier and policy
+roles when applying its lessons elsewhere. Roles need not map one-to-one to Git
+repositories; repository count, fake business vocabulary and resource names are
+not requirements for a target Harness.

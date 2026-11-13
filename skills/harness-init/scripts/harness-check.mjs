@@ -1,9 +1,1002 @@
 #!/usr/bin/env node
 // Generated from TypeScript by scripts/build.mjs. Do not edit.
 
-// src/adapters/harness-check.ts
-import fs4 from "node:fs";
+// src/adapters/local-context.ts
+import fs2 from "node:fs";
+import os2 from "node:os";
 import path3 from "node:path";
+
+// src/core/json.ts
+function sorted(value) {
+  if (Array.isArray(value)) return value.map(sorted);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, sorted(item)]));
+  }
+  return value;
+}
+function equal(left, right) {
+  return JSON.stringify(sorted(left)) === JSON.stringify(sorted(right));
+}
+function json(value) {
+  return JSON.stringify(sorted(value), null, 2) + "\n";
+}
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function fullMatch(pattern, value) {
+  return pattern.exec(value)?.[0] === value;
+}
+
+// src/core/evidence.ts
+var ARTIFACTS = ["git_commit", "oci_manifest_digest", "oci_index_digest", "package_version", "runtime_revision"];
+var EvidenceError = class extends Error {
+  name = "EvidenceError";
+};
+function requireEvidence(condition, message) {
+  if (!condition) throw new EvidenceError(message);
+}
+function object(value, name, required2, optional2 = []) {
+  requireEvidence(isObject(value), `${name} must be an object`);
+  requireEvidence(required2.every((key) => Object.hasOwn(value, key)), `${name} is missing required fields`);
+  requireEvidence(Object.keys(value).every((key) => [...required2, ...optional2].includes(key)), `${name} has unknown fields`);
+}
+function text(value, name) {
+  requireEvidence(
+    typeof value === "string" && value.trim() && [...value].length <= 2e3,
+    `${name} must be nonempty text (at most 2000 characters)`
+  );
+}
+function identifier(value, name) {
+  requireEvidence(typeof value === "string" && fullMatch(/^[a-z0-9][a-z0-9._-]*$/, value), `Invalid ${name}`);
+}
+function validateTarget(value) {
+  object(value, "target", ["environment", "identity"]);
+  for (const [key, item] of Object.entries(value)) text(item, `target.${key}`);
+}
+function validateArtifact(value) {
+  object(value, "artifact", ["kind", "value"], ["platform"]);
+  requireEvidence(typeof value.kind === "string" && ARTIFACTS.includes(value.kind), "Unsupported artifact identity kind; mutable tags are not evidence");
+  text(value.value, "artifact.value");
+  if ("platform" in value) text(value.platform, "artifact.platform");
+  if (value.kind === "git_commit") requireEvidence(fullMatch(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/, value.value), "git_commit requires a full lowercase SHA");
+  else if (value.kind.startsWith("oci_")) requireEvidence(fullMatch(/^sha256:[a-f0-9]{64}$/, value.value), "OCI identities require a sha256 digest");
+  else requireEvidence(!["latest", "main", "master", "head", "unknown"].includes(value.value.toLowerCase()) && !/[\s*^~<>=]/.test(value.value), "Artifact must be an exact resolved version or revision");
+}
+
+// src/core/verification.ts
+function validateDiagnosticSpec(value, relative2) {
+  object(value, "verification", ["max_age_seconds", "checks"]);
+  requireEvidence(Number.isSafeInteger(value.max_age_seconds) && Number(value.max_age_seconds) > 0, "max_age_seconds must be positive");
+  requireEvidence(Array.isArray(value.checks), "checks must be a list");
+  const ids = /* @__PURE__ */ new Set();
+  for (const check of value.checks) {
+    object(check, "diagnostic check", ["id", "layer", "target", "criterion"], ["artifact", "probe", "platform"]);
+    identifier(check.id, "check ID");
+    requireEvidence(!check.id.startsWith("harness-") && !ids.has(check.id), "Duplicate or reserved check ID");
+    ids.add(check.id);
+    requireEvidence(["tool", "access", "smoke", "ci"].includes(String(check.layer)), "Native agent and hook activation require session attestations, not command probes");
+    validateTarget(check.target);
+    text(check.criterion, "criterion");
+    if ("artifact" in check) validateArtifact(check.artifact);
+    if ("platform" in check) identifier(check.platform, "platform");
+    if ("probe" in check) {
+      requireEvidence(check.layer !== "ci", "CI execution requires an actual CI run reference");
+      object(check.probe, "probe", ["argv", "timeout_seconds"], ["cwd", "member", "expect_json"]);
+      requireEvidence(Array.isArray(check.probe.argv) && check.probe.argv.length > 0 && check.probe.argv.length <= 100, "Probe argv must be nonempty");
+      for (const arg of check.probe.argv) requireEvidence(typeof arg === "string" && arg.length > 0 && arg.length <= 2e3 && !/[\x00-\x1f]/.test(arg), "Use literal bounded probe arguments without secrets");
+      requireEvidence(Number.isSafeInteger(check.probe.timeout_seconds) && Number(check.probe.timeout_seconds) > 0 && Number(check.probe.timeout_seconds) <= 60, "Probe timeout must be between 1 and 60 seconds");
+      if ("cwd" in check.probe) relative2(check.probe.cwd);
+      if ("member" in check.probe) identifier(check.probe.member, "probe member");
+      if ("expect_json" in check.probe) requireEvidence(isObject(check.probe.expect_json) && Object.keys(check.probe.expect_json).length > 0, "expect_json must be a nonempty object");
+      if (check.layer === "access" || check.layer === "smoke") requireEvidence(isObject(check.probe.expect_json) && equal(check.probe.expect_json.target, check.target), "Access and smoke probes must assert the observed target in expect_json.target");
+      if (check.artifact) requireEvidence(isObject(check.probe.expect_json) && equal(check.probe.expect_json.artifact, check.artifact), "Artifact-bound probes must assert expect_json.artifact");
+    }
+  }
+}
+
+// src/core/documentation.ts
+var DOCUMENT_TOPICS = ["index", "development", "testing", "environments", "release", "operations", "toolchain"];
+function requiredDocumentTopics(profile) {
+  if (!isObject(profile) || !isObject(profile.harness) || !isObject(profile.harness.artifacts) || profile.harness.artifacts.documents !== true) return [];
+  const activities = isObject(profile.activities) ? profile.activities : {};
+  const root = isObject(profile.documentation) && typeof profile.documentation.root === "string" ? profile.documentation.root : profile.harness.layout === "centralized" ? ".harness/docs" : "docs/harness";
+  const topics = ["index"];
+  if (activities.development === true) topics.push("development");
+  if (activities.testing === true) topics.push("testing");
+  if (activities.deployment === true || activities.operations === true) topics.push("environments");
+  if (activities.deployment === true) topics.push("release");
+  if (activities.operations === true) topics.push("operations");
+  if (["development", "testing", "deployment", "operations"].some((activity) => activities[activity] === true)) topics.push("toolchain");
+  return topics.map((topic) => ({ topic, path: `${root}/${topic}.md` }));
+}
+
+// src/core/harness.ts
+var HARNESS_TARGETS = ["codex", "claude-code"];
+var HARNESS_PARTS = ["documents", "skills", "commands", "agents", "rules", "settings", "hooks", "ci"];
+var HarnessError = class extends Error {
+  name = "HarnessError";
+};
+function requireHarness(condition, message) {
+  if (!condition) throw new HarnessError(message);
+}
+function shape(value, name, fields) {
+  requireHarness(isObject(value), `${name} must be an object`);
+  requireHarness(Object.keys(value).every((key) => fields.includes(key)), `${name} has unknown fields`);
+}
+function text2(value, name) {
+  requireHarness(typeof value === "string" && value.trim() && value.length <= 1e5 && !value.includes("\0"), `${name} must be nonempty text (at most 100000 characters)`);
+}
+function identifier2(value) {
+  requireHarness(typeof value === "string" && value.length <= 64 && fullMatch(/^[a-z][a-z0-9-]*$/, value), "Names must be lowercase hyphenated identifiers of at most 64 characters");
+}
+function harnessPath(value) {
+  requireHarness(typeof value === "string" && !/[\\:\x00-\x1f\x7f]/.test(value) && value.split("/").every((part) => part && part !== "." && part !== ".."), "Expected a normalized relative harness path");
+  requireHarness(!isLocalResource(value), "Local context cannot be a shared artifact or source");
+  requireHarness(!value.split("/").some((part) => [".git", "node_modules"].includes(part)), "Harness paths cannot address Git metadata or dependencies");
+}
+function list(value, name) {
+  requireHarness(Array.isArray(value), `${name} must be a list`);
+}
+function unique(values, name) {
+  requireHarness(new Set(values).size === values.length, `${name} contains duplicates`);
+}
+function targets(value) {
+  list(value, "targets");
+  requireHarness(value.length && value.every((item) => HARNESS_TARGETS.includes(item)), "Select codex, claude-code, or both");
+  unique(value, "targets");
+}
+function validateHarnessSelection(value) {
+  shape(value, "harness", ["layout", "targets", "artifacts"]);
+  if ("layout" in value) requireHarness(value.layout === "centralized" || value.layout === "native", "Choose centralized or native harness layout");
+  if ("targets" in value) targets(value.targets);
+  if ("artifacts" in value) {
+    shape(value.artifacts, "harness.artifacts", [...HARNESS_PARTS]);
+    requireHarness(Object.values(value.artifacts).every((item) => typeof item === "boolean"), "Artifact choices must be booleans; omit unanswered choices");
+    if (value.layout === "centralized") requireHarness(!["settings", "hooks"].some((part) => value.artifacts[part] === true), "Centralized layout does not register native settings or hooks; choose native layout for those integrations");
+  }
+}
+function resources(value) {
+  list(value, "resources");
+  for (const item of value) {
+    shape(item, "resource", ["path", "body", "executable"]);
+    harnessPath(item.path);
+    text2(item.body, "resource.body");
+    if ("executable" in item) requireHarness(typeof item.executable === "boolean", "executable must be boolean");
+  }
+  unique(value.map((item) => item.path), "resource paths");
+}
+function validateHarnessSpec(value) {
+  shape(value, "harness spec", ["schema_version", "name", "language", "layout", "documentation_root", "targets", "sources", ...HARNESS_PARTS, "resources", "command_checks", "document_coverage", "provenance", "projections", "verification"]);
+  requireHarness(value.schema_version === 1, "Expected harness schema_version 1");
+  text2(value.name, "name");
+  targets(value.targets);
+  if ("language" in value) requireHarness(value.language === "en" || value.language === "zh-CN", "Generated entry-point language must be en or zh-CN");
+  if ("layout" in value) requireHarness(value.layout === "centralized" || value.layout === "native", "Choose centralized or native harness layout");
+  if ("documentation_root" in value) {
+    harnessPath(value.documentation_root);
+    requireHarness(value.documentation_root !== ".harness", "Documentation cannot use the harness state root");
+    if (value.layout === "centralized") requireHarness(value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Centralized documentation_root must be .harness/docs or a subdirectory");
+    else requireHarness(!value.documentation_root.startsWith(".harness/") || value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Documentation cannot use reserved harness state directories");
+  }
+  if (value.layout === "centralized") requireHarness(!["settings", "hooks"].some((part) => part in value), "Centralized layout does not register native settings or hooks; choose native layout for those integrations");
+  list(value.sources, "sources");
+  for (const source of value.sources) {
+    shape(source, "source", ["member", "path"]);
+    harnessPath(source.path);
+    if ("member" in source) {
+      text2(source.member, "source.member");
+      requireHarness(fullMatch(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, source.member), "Invalid source member");
+    }
+  }
+  unique(value.sources.map((source) => json(source)), "sources");
+  if ("verification" in value) validateDiagnosticSpec(value.verification, harnessPath);
+  const sourceRef = (source) => {
+    shape(source, "source reference", ["member", "path"]);
+    harnessPath(source.path);
+    if ("member" in source) requireHarness(typeof source.member === "string" && fullMatch(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, source.member), "Invalid member reference");
+  };
+  if ("command_checks" in value) {
+    list(value.command_checks, "command_checks");
+    for (const check of value.command_checks) {
+      shape(check, "command check", ["document", "command", "member", "cwd", "phase", "reason"]);
+      harnessPath(check.document);
+      text2(check.command, "command");
+      if ("cwd" in check) harnessPath(check.cwd);
+      if ("member" in check) sourceRef({ member: check.member, path: "context" });
+      if ("phase" in check) requireHarness(["current", "planned"].includes(String(check.phase)), "Command phase must be current or planned");
+      if ("reason" in check) text2(check.reason, "command reason");
+      if (check.phase === "planned") text2(check.reason, "Planned commands require a reason");
+    }
+    unique(value.command_checks.map((check) => {
+      const item = check;
+      return json([item.document, item.command]);
+    }), "command contexts");
+  }
+  if ("document_coverage" in value) {
+    list(value.document_coverage, "document_coverage");
+    for (const entry of value.document_coverage) {
+      shape(entry, "document coverage", ["topic", "path", "heading"]);
+      requireHarness(DOCUMENT_TOPICS.includes(entry.topic), "Unknown documentation topic");
+      harnessPath(entry.path);
+      if ("heading" in entry) text2(entry.heading, "coverage heading");
+    }
+    unique(value.document_coverage.map((entry) => entry.topic), "document coverage topics");
+  }
+  if ("provenance" in value) {
+    list(value.provenance, "provenance");
+    for (const entry of value.provenance) {
+      shape(entry, "provenance entry", ["output", "sources"]);
+      harnessPath(entry.output);
+      list(entry.sources, "provenance sources");
+      for (const source of entry.sources) {
+        sourceRef(source);
+        requireHarness(value.sources.some((item) => json(item) === json(source)), "Provenance must reference a declared source");
+      }
+      unique(entry.sources.map(json), "provenance sources");
+    }
+    unique(value.provenance.map((entry) => entry.output), "provenance outputs");
+  }
+  if ("projections" in value) {
+    list(value.projections, "projections");
+    for (const entry of value.projections) {
+      shape(entry, "projection", ["source", "target"]);
+      sourceRef(entry.source);
+      sourceRef(entry.target);
+      requireHarness(json(entry.source) !== json(entry.target), "A projection needs different source and target files");
+      requireHarness(value.sources.some((item) => json(item) === json(entry.source)), "Projection owner must be a declared source");
+    }
+    unique(value.projections.map((entry) => json(entry.target)), "projection targets");
+  }
+  for (const kind of ["documents", "resources"]) if (kind in value) {
+    resources(value[kind]);
+    for (const resource of value[kind]) {
+      if (kind === "documents" && value.documentation_root !== void 0) requireHarness(resource.path.startsWith(`${value.documentation_root}/`), "Generated documents must stay inside documentation_root");
+      if (value.layout === "centralized") requireHarness(resource.path.startsWith(kind === "documents" ? ".harness/docs/" : ".harness/resources/"), "Centralized documents belong in .harness/docs/ and resources in .harness/resources/");
+      else requireHarness(!resource.path.startsWith(".harness/") || kind === "documents" && value.documentation_root !== void 0 && resource.path.startsWith(`${value.documentation_root}/`), "The .harness directory is reserved for generated state and runtimes");
+    }
+  }
+  for (const kind of ["skills", "commands", "agents"]) if (kind in value) {
+    list(value[kind], kind);
+    for (const item of value[kind]) {
+      shape(item, kind, ["name", "description", "body", "resources"]);
+      identifier2(item.name);
+      text2(item.description, "description");
+      text2(item.body, "body");
+      if ("resources" in item) {
+        requireHarness(kind === "skills", "Only skills can contain portable resources");
+        resources(item.resources);
+        requireHarness(!item.resources.some((resource) => resource.path === "SKILL.md"), "Skill resources cannot replace SKILL.md");
+      }
+    }
+    unique(value[kind].map((item) => item.name), `${kind} names`);
+  }
+  unique([...value.skills ?? [], ...value.commands ?? []].map((item) => item.name), "Skill and command names");
+  if ("rules" in value) {
+    list(value.rules, "rules");
+    for (const rule of value.rules) {
+      shape(rule, "rule", ["name", "body"]);
+      identifier2(rule.name);
+      text2(rule.body, "rule.body");
+    }
+    unique(value.rules.map((rule) => rule.name), "rule names");
+  }
+  if ("settings" in value) {
+    shape(value.settings, "settings", ["commands", "codex", "claude_code"]);
+    requireHarness(value.settings.codex !== void 0 || value.settings.claude_code !== void 0 || Array.isArray(value.settings.commands) && value.settings.commands.length > 0, "Settings need a native configuration or nonempty command policies");
+    if ("commands" in value.settings) {
+      list(value.settings.commands, "settings.commands");
+      for (const policy of value.settings.commands) {
+        shape(policy, "command policy", ["prefix", "decision", "reason"]);
+        list(policy.prefix, "prefix");
+        requireHarness(policy.prefix.length && policy.prefix.every((part) => typeof part === "string" && fullMatch(/^[a-zA-Z0-9_./:=@+-]+$/, part)), "Command prefixes require literal tokens without whitespace or shell metacharacters");
+        requireHarness(["ask", "deny"].includes(policy.decision), "Command policy must ask or deny");
+        text2(policy.reason, "reason");
+      }
+    }
+    if ("codex" in value.settings) {
+      requireHarness(value.targets.includes("codex"), "Codex settings require the codex target");
+      shape(value.settings.codex, "codex settings", ["sandbox_mode", "approval_policy"]);
+      requireHarness(["read-only", "workspace-write"].includes(value.settings.codex.sandbox_mode), "Choose a read-only or workspace-write sandbox");
+      requireHarness(["on-request", "never"].includes(value.settings.codex.approval_policy), "Unsupported approval policy");
+    }
+    if ("claude_code" in value.settings) {
+      requireHarness(value.targets.includes("claude-code"), "Claude settings require the claude-code target");
+      shape(value.settings.claude_code, "claude_code settings", ["defaultMode"]);
+      requireHarness(["default", "plan", "dontAsk"].includes(value.settings.claude_code.defaultMode), "Unsupported Claude permission mode");
+    }
+  }
+  if ("hooks" in value) {
+    shape(value.hooks, "hooks", ["guards", "cases"]);
+    list(value.hooks.guards, "guards");
+    list(value.hooks.cases, "cases");
+    requireHarness(value.hooks.guards.length > 0 && value.hooks.cases.length > 1, "Hooks need guards and positive/negative cases");
+    for (const guard of value.hooks.guards) {
+      shape(guard, "guard", ["id", "contains_all", "reason"]);
+      identifier2(guard.id);
+      text2(guard.reason, "guard.reason");
+      list(guard.contains_all, "contains_all");
+      requireHarness(guard.contains_all.length > 0, "A guard needs nonempty command fragments");
+      for (const fragment of guard.contains_all) text2(fragment, "command fragment");
+    }
+    unique(value.hooks.guards.map((guard) => guard.id), "guard IDs");
+    for (const example of value.hooks.cases) {
+      shape(example, "hook case", ["name", "input", "expected"]);
+      text2(example.name, "case.name");
+      requireHarness(isObject(example.input), "Hook input must be an object");
+      requireHarness(["pass", "deny"].includes(example.expected), "Hook case expects pass or deny");
+    }
+    const cases = value.hooks.cases, guards = value.hooks.guards;
+    unique(cases.map((example) => example.name), "case names");
+    requireHarness(cases.some((example) => example.expected === "pass"), "Hooks need a non-blocking case");
+    for (const guard of guards) requireHarness(cases.some((example) => example.expected === "deny" && evaluateGuard([guard], example.input).guard === guard.id), `Missing blocking case for guard ${guard.id}`);
+  }
+  if ("ci" in value) {
+    shape(value.ci, "ci", ["provider", "checks"]);
+    requireHarness(value.ci.provider === "github-actions", "Currently supported CI provider: github-actions");
+    list(value.ci.checks, "ci.checks");
+    for (const check of value.ci.checks) {
+      shape(check, "CI check", ["name", "run", "working_directory"]);
+      text2(check.name, "CI check name");
+      text2(check.run, "CI command");
+      if ("working_directory" in check) harnessPath(check.working_directory);
+    }
+  }
+}
+function evaluateGuard(guards, input) {
+  if (!isObject(input)) return { decision: "deny", reason: "Malformed hook input" };
+  if (input.hook_event_name !== "PreToolUse") return { decision: "pass" };
+  if (!["Bash", "exec_command", "shell_command"].includes(input.tool_name)) return { decision: "pass" };
+  const args = input.tool_input;
+  const command = isObject(args) ? args.command ?? args.cmd : void 0;
+  if (typeof command !== "string" || command.length > 256 * 1024) return { decision: "deny", reason: "Cannot inspect this shell tool input" };
+  const normalized = command.replace(/\s+/g, " ");
+  const guard = guards.find((item) => item.contains_all.every((fragment) => normalized.includes(fragment.replace(/\s+/g, " "))));
+  return guard ? { decision: "deny", reason: guard.reason, guard: guard.id } : { decision: "pass" };
+}
+function harnessDocumentRoot(spec) {
+  return spec.documentation_root ?? (spec.layout === "centralized" ? ".harness/docs" : "docs/harness");
+}
+function harnessConfiguration(spec, artifacts) {
+  const kinds = {
+    documents: ["document"],
+    skills: ["skill", "skill-resource"],
+    commands: ["command"],
+    agents: ["agent"],
+    rules: ["rule"],
+    settings: ["settings"],
+    hooks: ["hook"],
+    ci: ["ci"]
+  };
+  const parts = Object.fromEntries(HARNESS_PARTS.map((part) => [part, spec[part] === void 0 ? [] : artifacts.filter((file) => kinds[part].includes(file.kind) || part === "hooks" && (file.path === ".claude/settings.json" || file.path === ".harness/runtime/hook.mjs")).map((file) => file.path)]));
+  return {
+    layout: spec.layout ?? "native",
+    discovery: spec.layout === "centralized" ? "entrypoint-routed" : "native",
+    documentation_policy: { root: harnessDocumentRoot(spec), new_ai_documents: "inside-root", existing_documents: "ask-before-moving", enforcement: "agent-instructions" },
+    kind: HARNESS_PARTS.some((part) => part !== "documents" && parts[part].length) ? "repository-harness" : parts.documents.length ? "documents-only" : "entrypoints-only",
+    targets: spec.targets.map((target) => ({ target, entrypoint: target === "codex" ? "AGENTS.md" : "CLAUDE.md" })),
+    parts
+  };
+}
+function frontmatter(item, extra = "") {
+  return `---
+name: ${JSON.stringify(item.name)}
+description: ${JSON.stringify(item.description)}
+${extra}---
+
+${item.body.trim()}
+`;
+}
+function renderHarness(spec, runtimes) {
+  validateHarnessSpec(spec);
+  const chinese = spec.language === "zh-CN";
+  const artifacts = [], routes = [];
+  const add = (path6, kind, content, format = "text", executable = false) => artifacts.push({ path: path6, kind, format, content, executable });
+  for (const document of spec.documents ?? []) {
+    add(document.path, "document", document.body.trim() + "\n");
+    routes.push(`- [${document.path}](${document.path})`);
+  }
+  for (const resource of spec.resources ?? []) add(resource.path, "resource", resource.body, "text", resource.executable);
+  if (spec.layout === "centralized") {
+    for (const skill of spec.skills ?? []) {
+      const folder = `.harness/skills/${skill.name}`;
+      add(`${folder}/SKILL.md`, "skill", frontmatter(skill));
+      routes.push(`- ${skill.description} — [${skill.name}](${folder}/SKILL.md)`);
+      for (const resource of skill.resources ?? []) add(`${folder}/${resource.path}`, "skill-resource", resource.body, "text", resource.executable);
+    }
+    for (const command of spec.commands ?? []) {
+      const file = `.harness/commands/${command.name}.md`;
+      add(file, "command", frontmatter(command));
+      routes.push(chinese ? `- 按需执行「${command.description}」，阅读 [${command.name}](${file})。` : `- For ${command.description}, follow [${command.name}](${file}).`);
+    }
+    for (const agent of spec.agents ?? []) {
+      const file = `.harness/agents/${agent.name}.md`;
+      add(file, "agent", frontmatter(agent));
+      routes.push(chinese ? `- 需要且允许委派时，按 [${agent.name}](${file}) 的任务说明执行：${agent.description}` : `- When delegation is appropriate and allowed, use [${agent.name}](${file}): ${agent.description}`);
+    }
+    for (const rule of spec.rules ?? []) {
+      const file = `.harness/rules/${rule.name}.md`;
+      add(file, "rule", rule.body.trim() + "\n");
+      routes.push(chinese ? `- 必读规则：[${rule.name}](${file})。` : `- Required guidance: [${rule.name}](${file}).`);
+    }
+  }
+  for (const target of spec.layout === "centralized" ? [] : spec.targets) {
+    const base = target === "codex" ? ".agents" : ".claude";
+    for (const skill of spec.skills ?? []) {
+      const folder = `${base}/skills/${skill.name}`;
+      add(`${folder}/SKILL.md`, "skill", frontmatter(skill));
+      routes.push(`- ${target}: ${skill.description} — [${skill.name}](${folder}/SKILL.md)`);
+      for (const resource of skill.resources ?? []) add(`${folder}/${resource.path}`, "skill-resource", resource.body, "text", resource.executable);
+    }
+    for (const command of spec.commands ?? []) {
+      const file = target === "codex" ? `${base}/skills/${command.name}/SKILL.md` : `${base}/commands/${command.name}.md`;
+      add(file, "command", frontmatter(command, target === "claude-code" ? "disable-model-invocation: true\n" : ""));
+      if (target === "codex") add(`${base}/skills/${command.name}/agents/openai.yaml`, "command", "policy:\n  allow_implicit_invocation: false\n");
+      routes.push(chinese ? `- ${target}：调用 ${target === "codex" ? "$" : "/"}${command.name}，参见[操作步骤](${file})。` : `- ${target}: invoke ${target === "codex" ? "$" : "/"}${command.name} — [procedure](${file})`);
+    }
+    for (const agent of spec.agents ?? []) {
+      const file = target === "codex" ? `.codex/agents/${agent.name}.toml` : `.claude/agents/${agent.name}.md`;
+      const content = target === "codex" ? `name = ${JSON.stringify(agent.name)}
+description = ${JSON.stringify(agent.description)}
+developer_instructions = ${JSON.stringify(agent.body)}
+` : frontmatter(agent);
+      add(file, "agent", content);
+      routes.push(chinese ? `- ${target}：任务需要时，将「${agent.description}」委派给 [${agent.name}](${file})；沿用父级权限。` : `- ${target}: delegate ${agent.description} to [${agent.name}](${file}) when the task calls for it; parent permissions apply.`);
+    }
+    for (const rule of spec.rules ?? []) {
+      const file = target === "codex" ? `.harness/rules/${rule.name}.md` : `.claude/rules/${rule.name}.md`;
+      add(file, "rule", rule.body.trim() + "\n");
+      routes.push(chinese ? `- ${target} 的必读规则：在适用范围内执行操作前，阅读 [${rule.name}](${file})。` : `- Required guidance for ${target}: read [${rule.name}](${file}) before acting in its scope.`);
+    }
+  }
+  const introduction = chinese ? "在选定的工作区中遵循已有说明，并通过受忽略的本地 Markdown 入口定位成员仓库。" : "Use the selected workspace and its existing instructions. Resolve member checkout paths through the established local mapping.";
+  const verification = chinese ? "配置与本地验证参见 [harness 配置](.harness/harness.json)。修改后运行 `node .harness/runtime/check.mjs --workspace .`。检查通过不代表 Agent 已加载配置，也不代表已具备部署条件。" : "Configuration and local verification: [harness specification](.harness/harness.json). Run `node .harness/runtime/check.mjs --workspace .` after changes. A passing check does not establish agent activation or deployment readiness.";
+  const routing = spec.layout === "centralized" ? chinese ? "\n\nAGENTS.md 是统一入口正文；其他宿主入口软链到它。按任务读取下列流程和规则；这些内容通过本入口使用，不注册宿主原生斜杠命令、自动发现的 Skills 或子代理。" : "\n\nAGENTS.md is the canonical entry point; other host entry points link to it. Read the relevant procedures and rules below. These are entry-point-routed instructions, not registered native commands, automatically discovered Skills or agents." : "";
+  const documentRoot = harnessDocumentRoot(spec);
+  const documentPolicy = chinese ? `## 文档存放规则
+
+后续所有由 AI 新增的项目文档（包括计划、设计、分析、验证报告和交接记录）必须放在 \`${documentRoot}/\`，按主题组织并更新该目录的索引。 本仓库内的文件和工作流按用途命名，省略重复的仓库名或项目名前缀；只有需要区分组件时才加限定词。不得在仓库根目录或其他目录新增此类文档或重复副本。AGENTS.md 与宿主入口只保留规则和导航；工具要求的配置、Skill 和运行文件按各自约定存放。
+
+发现其他位置的现有文档时，先列出原路径、拟迁入路径和需要更新的引用，询问用户选择迁入哪些文档、保留哪些文档；已有明确选择时直接沿用。未经选择不移动或删除原文，保留原位的文档通过链接引用。迁移须保留内容，检查重名、修复相对链接及调用方，再核对来源与文档完整性。` : `## Documentation location
+
+All new project documentation written by AI, including plans, designs, analyses, validation reports and handoff notes, must live under \`${documentRoot}/\`. Organize it by topic and update that directory's index. Name repository-local files and workflows by purpose, without repeating the repository or product name; add a component qualifier only when needed to distinguish workflows. Do not create these documents or duplicate copies at the repository root or elsewhere. AGENTS.md and host entry points contain rules and navigation; tool-required configuration, Skills and runtime files retain their prescribed locations.
+
+When existing documents are found elsewhere, list their current paths, proposed destinations and affected references, then ask the user which to move and which to keep. Reuse an explicit prior choice. Do not move or delete unselected originals; link to documents kept in place. For a selected move, preserve content, check collisions, repair relative links and callers, then verify sources and documentation completeness.`;
+  const localContext = runtimes.localContext ?? DEFAULT_LOCAL_CONTEXT;
+  const localPolicy = chinese ? `需要本机仓库路径、环境、工具或个人访问上下文时，先读取[可选本地入口](${localContext})。本地文件按 *.local.md 忽略，由本地配置流程维护，不属于共享生成产物；使用 \`node .harness/runtime/local-context.mjs --workspace .\` 统一解析和校验身份。新机器缺少文件时补齐绑定并重新验证，不继承他人的就绪状态。凭据值继续保存在环境变量或系统凭据存储中。` : `For machine checkout paths, environment, tools or personal access context, first read the [optional local entry](${localContext}). Files matching *.local.md are ignored and maintained by local configuration, outside shared generation. Use \`node .harness/runtime/local-context.mjs --workspace .\` for the shared parser and identity checks. On a new machine, supply bindings and reverify readiness; do not inherit another machine's observations. Keep credential values in environment variables or existing credential stores.`;
+  const entry = `# ${spec.name}
+
+${introduction}${routing}
+
+${documentPolicy}
+
+${localPolicy}
+
+${routes.join("\n")}
+
+${verification}
+`;
+  if (spec.targets.includes("codex") || spec.layout === "centralized") add("AGENTS.md", "entrypoint", entry, "entrypoint");
+  if (spec.targets.includes("claude-code")) add("CLAUDE.md", spec.layout === "centralized" ? "entrypoint-alias" : "entrypoint", spec.layout === "centralized" ? "AGENTS.md" : entry, spec.layout === "centralized" ? "symlink" : "entrypoint");
+  if (spec.targets.includes("codex") && spec.settings?.codex) add(".codex/config.toml", "settings", json(spec.settings.codex), "toml-merge");
+  if (spec.targets.includes("codex") && spec.settings?.commands?.length) {
+    add(".codex/rules/harness.rules", "settings", spec.settings.commands.map((policy) => `prefix_rule(pattern = ${JSON.stringify(policy.prefix)}, decision = ${JSON.stringify(policy.decision === "deny" ? "forbidden" : "prompt")}, justification = ${JSON.stringify(policy.reason)})`).join("\n") + "\n");
+  }
+  const hookCommand = 'node "$(git rev-parse --show-toplevel)/.harness/runtime/hook.mjs"';
+  const hooks = { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: hookCommand, timeout: 10 }] }] };
+  if (spec.targets.includes("codex") && spec.hooks) add(".codex/hooks.json", "hook", json({ hooks }), "json-merge");
+  if (spec.targets.includes("claude-code") && (spec.settings || spec.hooks)) {
+    const settings = {}, permissions = {};
+    for (const decision of ["ask", "deny"]) {
+      const entries = (spec.settings?.commands ?? []).filter((policy) => policy.decision === decision).flatMap((policy) => [`Bash(${policy.prefix.join(" ")})`, `Bash(${policy.prefix.join(" ")} *)`]);
+      if (entries.length) permissions[decision] = entries;
+    }
+    if (spec.settings?.claude_code) permissions.defaultMode = spec.settings.claude_code.defaultMode;
+    if (Object.keys(permissions).length) settings.permissions = permissions;
+    if (spec.hooks) settings.hooks = hooks;
+    add(".claude/settings.json", "settings", json(settings), "json-merge");
+  }
+  if (spec.ci) {
+    add(".github/workflows/harness-gate.yml", "ci", json({
+      name: "Harness gate",
+      on: { pull_request: {}, push: {}, workflow_call: {} },
+      permissions: { contents: "read" },
+      jobs: { harness: { "runs-on": "ubuntu-latest", "timeout-minutes": 10, steps: [
+        { uses: "actions/checkout@v7", with: { "persist-credentials": false } },
+        { uses: "actions/setup-node@v7", with: { "node-version": "24", "package-manager-cache": false } },
+        { name: "Validate generated harness and hook cases", run: "node .harness/runtime/check.mjs --workspace ." },
+        ...spec.ci.checks.map((check) => ({ name: check.name, run: check.run, ...check.working_directory ? { "working-directory": check.working_directory } : {} }))
+      ] } }
+    }));
+  }
+  add(".harness/runtime/check.mjs", "runtime", runtimes.check, "text", true);
+  if (spec.hooks) add(".harness/runtime/hook.mjs", "runtime", runtimes.hook, "text", true);
+  add(".harness/runtime/THIRD-PARTY-NOTICES.txt", "runtime", runtimes.notices);
+  add(".harness/runtime/local-context.mjs", "runtime", runtimes.localContextRuntime ?? "", "text", true);
+  add(".harness/harness.json", "spec", json(spec));
+  unique(artifacts.map((artifact) => artifact.path), "generated paths");
+  const paths = artifacts.map((artifact) => artifact.path.toLowerCase()).sort();
+  unique(paths, "case-insensitive generated paths");
+  const names2 = new Set(paths);
+  for (const entry2 of spec.provenance ?? []) requireHarness(artifacts.some((item) => item.path === entry2.output), `Unknown provenance output: ${entry2.output}`);
+  for (const entry2 of spec.command_checks ?? []) requireHarness(artifacts.some((item) => item.path === entry2.document), `Unknown command document: ${entry2.document}`);
+  for (const entry2 of spec.document_coverage ?? []) requireHarness(spec.documents?.some((item) => item.path === entry2.path) || spec.sources.some((source) => !source.member && source.path === entry2.path), `Coverage must reference a generated document or declared local source: ${entry2.path}`);
+  for (const file of paths) {
+    const parts = file.split("/");
+    for (let index = 1; index < parts.length; index++) requireHarness(!names2.has(parts.slice(0, index).join("/")), "A generated file cannot also be a parent directory");
+  }
+  return artifacts;
+}
+
+// src/core/onboarding.ts
+var ACTIVITIES = ["development", "testing", "deployment", "operations"];
+var OnboardingError = class extends Error {
+  name = "OnboardingError";
+};
+function requireProfile(condition, message) {
+  if (!condition) throw new OnboardingError(message);
+}
+function shape2(value, name, fields) {
+  requireProfile(isObject(value), `${name} must be an object`);
+  requireProfile(Object.keys(value).every((key) => fields.includes(key)), `${name} has unknown fields`);
+}
+function nonempty(value, name) {
+  requireProfile(typeof value === "string" && value.trim() && value.length <= 2e3, `${name} must be nonempty text of at most 2000 characters`);
+}
+function names(value, name) {
+  requireProfile(Array.isArray(value), `${name} must be a list`);
+  for (const item of value) nonempty(item, name);
+  requireProfile(new Set(value).size === value.length, `${name} contains duplicates`);
+}
+function relative(value) {
+  requireProfile(typeof value === "string" && !/[\\:\x00-\x1f\x7f]/.test(value) && value.split("/").every((part) => part && ![".", "..", ".git", "node_modules"].includes(part)), "Documentation paths must be normalized relative paths outside Git metadata and dependencies");
+}
+function validateOnboarding(value) {
+  shape2(value, "onboarding", ["schema_version", "language", "background", "activities", "platforms", "tool_policy", "documentation", "harness"]);
+  requireProfile(value.schema_version === 1, "Expected onboarding schema_version 1");
+  if ("language" in value) requireProfile(value.language === "en" || value.language === "zh-CN", "Choose en or zh-CN for generated harness prose");
+  if ("harness" in value) validateHarnessSelection(value.harness);
+  if ("background" in value) nonempty(value.background, "background");
+  if ("activities" in value) {
+    shape2(value.activities, "activities", [...ACTIVITIES]);
+    requireProfile(Object.values(value.activities).every((item) => typeof item === "boolean"), "Activity choices must be booleans; omit unanswered choices");
+  }
+  if ("tool_policy" in value) requireProfile(["install-missing", "inspect-only"].includes(value.tool_policy), "Unknown tool_policy");
+  if ("documentation" in value) {
+    shape2(value.documentation, "documentation", ["placement", "root", "entrypoint", "existing_documents"]);
+    requireProfile(["coordinator", "members"].includes(value.documentation.placement), "Choose coordinator or members documentation placement");
+    relative(value.documentation.root);
+    if ("entrypoint" in value.documentation) relative(value.documentation.entrypoint);
+    if ("existing_documents" in value.documentation) {
+      requireProfile(Array.isArray(value.documentation.existing_documents), "existing_documents must be a list of explicit choices");
+      const seen = /* @__PURE__ */ new Set(), destinations = /* @__PURE__ */ new Set();
+      for (const choice of value.documentation.existing_documents) {
+        shape2(choice, "existing document choice", ["member", "path", "action", "destination"]);
+        requireProfile(typeof choice.member === "string" && fullMatch(/^[a-z0-9][a-z0-9._-]*$/, choice.member), "Existing documents need a stable member ID");
+        relative(choice.path);
+        const key = JSON.stringify([choice.member, choice.path]);
+        requireProfile(!seen.has(key), "Repeated existing document choice");
+        seen.add(key);
+        requireProfile(choice.action === "keep" || choice.action === "move", "Choose keep or move for each existing document");
+        if (choice.action === "move") {
+          relative(choice.destination);
+          requireProfile(choice.destination.startsWith(`${value.documentation.root}/`) && choice.destination !== choice.path, "Move destinations must be inside the documentation root and differ from the source");
+          const destination = JSON.stringify([choice.member, choice.destination]);
+          requireProfile(!destinations.has(destination), "Multiple documents cannot move to the same destination");
+          destinations.add(destination);
+        } else requireProfile(!("destination" in choice), "Kept documents do not have a move destination");
+      }
+    }
+  }
+  if ("platforms" in value) {
+    requireProfile(Array.isArray(value.platforms), "platforms must be a list");
+    const seen = /* @__PURE__ */ new Set();
+    for (const platform of value.platforms) {
+      shape2(platform, "platform", ["id", "provider", "name", "services", "environments", "access", "delivery", "tools"]);
+      requireProfile(typeof platform.id === "string" && fullMatch(/^[a-z0-9][a-z0-9._-]*$/, platform.id) && !seen.has(platform.id), "Platform IDs must be unique lowercase identifiers");
+      seen.add(platform.id);
+      requireProfile(["aws", "azure", "gcp", "other"].includes(platform.provider), "Unknown provider; use other with its actual name");
+      if ("name" in platform) nonempty(platform.name, "platform.name");
+      if (platform.provider === "other") nonempty(platform.name, "platform.name");
+      for (const field of ["services", "environments", "tools"]) if (field in platform) names(platform[field], `platform.${field}`);
+      if ("access" in platform) requireProfile(["cli", "existing-tools", "documentation-only"].includes(platform.access), "Unknown platform access mode");
+      if ("delivery" in platform) requireProfile(["github-actions", "azure-pipelines", "gitlab-ci", "manual", "other"].includes(platform.delivery), "Unknown delivery method; use other for a project-owned workflow");
+    }
+  }
+}
+
+// src/core/registry.ts
+var MODES = ["register", "analyze", "init"];
+var RELATIONSHIPS = ["starts_after", "deploys_after", "consumes", "validated_by", "requires"];
+var WorkspaceError = class extends Error {
+  name = "WorkspaceError";
+};
+function requireWorkspace(condition, message) {
+  if (!condition) throw new WorkspaceError(message);
+}
+var optional = (value, key, fallback) => Object.hasOwn(value, key) ? value[key] : fallback;
+function validateId(value) {
+  requireWorkspace(typeof value === "string" && fullMatch(/^[a-z0-9][a-z0-9._-]*$/, value), `Invalid member ID: ${String(value)}. Use lowercase letters, numbers, dots, dashes, or underscores.`);
+}
+function validateLanguage(value) {
+  requireWorkspace(typeof value === "string" && fullMatch(/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/, value), `Invalid language tag: ${String(value)}. Use a tag such as en or zh-CN.`);
+}
+function relativePath(value) {
+  requireWorkspace(typeof value === "string" && value.length > 0 && !/[\\:\0]/.test(value) && value.split("/").every((part) => part && part !== "." && part !== ".."), `Invalid relative file reference: ${String(value)}`);
+  return value;
+}
+function schema(value) {
+  requireWorkspace(isObject(value) && value.schema_version === 1, "Expected workspace schema version 1.");
+}
+function docRefs(value) {
+  requireWorkspace(Array.isArray(value), "Document references must be a list of relative paths.");
+  for (const item of value) {
+    relativePath(item);
+    requireWorkspace(!isLocalResource(item), "Local context cannot be a shared document or source reference");
+  }
+}
+function fingerprints(value) {
+  requireWorkspace(Array.isArray(value), "Source fingerprints must be a list.");
+  const entries = /* @__PURE__ */ new Map();
+  for (const source of value) {
+    requireWorkspace(isObject(source), "Each source fingerprint must be an object.");
+    const path6 = relativePath(source.path), digest = source.sha256;
+    requireWorkspace(!isLocalResource(path6), "Local context cannot enter shared source or document review fingerprints");
+    requireWorkspace(!entries.has(path6) && typeof digest === "string" && fullMatch(/^[a-f0-9]{64}$/, digest), `Invalid or repeated source fingerprint: ${path6}`);
+    entries.set(path6, digest);
+  }
+  return Object.fromEntries(entries);
+}
+function componentModel(value, members) {
+  const components = /* @__PURE__ */ new Map(), explicitMembers = /* @__PURE__ */ new Set();
+  const entries = optional(value, "components", []);
+  requireWorkspace(Array.isArray(entries), "Components must be a list.");
+  for (const item of entries) {
+    requireWorkspace(isObject(item), "Each component must be an object.");
+    validateId(item.id);
+    validateId(item.member);
+    requireWorkspace(!components.has(item.id) && Object.hasOwn(members, item.member), `Repeated component or unknown member: ${item.id}`);
+    const path6 = optional(item, "path", ".");
+    if (path6 !== ".") relativePath(path6);
+    components.set(item.id, { ...item, id: item.id, member: item.member, path: path6 });
+    explicitMembers.add(item.member);
+  }
+  for (const id of Object.keys(members).sort()) if (!explicitMembers.has(id)) {
+    requireWorkspace(!components.has(id), `Component shadows an implicit component: ${id}`);
+    components.set(id, { id, member: id, path: "." });
+  }
+  const relationships = optional(value, "relationships", []);
+  requireWorkspace(Array.isArray(relationships), "Relationships must be a list.");
+  const seen = /* @__PURE__ */ new Set();
+  for (const edge of relationships) {
+    requireWorkspace(isObject(edge), "Each relationship must be an object.");
+    requireWorkspace(typeof edge.type === "string" && typeof edge.from === "string" && typeof edge.to === "string", "A relationship needs string type, from, and to fields.");
+    requireWorkspace(RELATIONSHIPS.includes(edge.type), `Unknown relationship type: ${edge.type}`);
+    const key = JSON.stringify([edge.type, edge.from, edge.to]);
+    requireWorkspace(components.has(edge.from) && components.has(edge.to) && edge.from !== edge.to && !seen.has(key), `Invalid or repeated relationship: ${key}`);
+    seen.add(key);
+  }
+  const orders = { starts_after: [], deploys_after: [] };
+  for (const kind of ["starts_after", "deploys_after"]) {
+    const remaining = new Map([...components.keys()].map((key) => [key, /* @__PURE__ */ new Set()]));
+    for (const edge of relationships) if (edge.type === kind) remaining.get(edge.from).add(edge.to);
+    while (remaining.size) {
+      const ready = [...remaining].filter(([, deps]) => !deps.size).map(([key]) => key).sort();
+      requireWorkspace(ready.length, `Cycle in ${kind}: ${[...remaining.keys()].sort().join(", ")}`);
+      orders[kind].push(...ready);
+      for (const key of ready) remaining.delete(key);
+      for (const dependencies of remaining.values()) for (const key of ready) dependencies.delete(key);
+    }
+  }
+  const capabilities = optional(value, "capabilities", []);
+  requireWorkspace(Array.isArray(capabilities), "Capabilities must be a list.");
+  seen.clear();
+  for (const item of capabilities) {
+    requireWorkspace(isObject(item), "Each capability must be an object.");
+    validateId(item.id);
+    requireWorkspace(!seen.has(item.id) && Array.isArray(item.requires) && item.requires.length, `Invalid or repeated capability: ${item.id}`);
+    for (const id of item.requires) {
+      validateId(id);
+      requireWorkspace(components.has(id), `Unknown component for ${item.id}: ${id}`);
+    }
+    requireWorkspace(item.requires.length === new Set(item.requires).size, `Repeated required component for ${item.id}`);
+    seen.add(item.id);
+  }
+  return { components: Object.fromEntries(components), orders, capabilities };
+}
+function validateManifest(value) {
+  schema(value);
+  validateLanguage(value.language);
+  if ("local_context" in value) requireWorkspace(typeof value.local_context === "string" && value.local_context.endsWith(".local.md") && !!relativePath(value.local_context), "Expected a relative *.local.md entry");
+  docRefs(optional(value, "documents", []));
+  if ("onboarding" in value) validateOnboarding(value.onboarding);
+  requireWorkspace(Array.isArray(value.members), "Workspace members must be a list.");
+  const members = /* @__PURE__ */ new Map(), remotes = /* @__PURE__ */ new Set();
+  for (const member of value.members) {
+    requireWorkspace(isObject(member), "Each workspace member must be an object.");
+    validateId(member.id);
+    requireWorkspace(!members.has(member.id), `Repeated member ID: ${member.id}`);
+    requireWorkspace(typeof member.mode === "string" && MODES.includes(member.mode), `Unknown member mode for ${member.id}.`);
+    if ("language" in member) validateLanguage(member.language);
+    if ("remote" in member) {
+      const remote = member.remote;
+      requireWorkspace(typeof remote === "string" && fullMatch(/^[^/@?#\s]+\/[^@?#\s]+$/, remote) && !remote.includes("://"), `Invalid credential-free remote identity for ${member.id}.`);
+      requireWorkspace(!remotes.has(remote), `Repeated remote identity for ${member.id}: ${remote}`);
+      remotes.add(remote);
+    }
+    docRefs(optional(member, "documents", []));
+    fingerprints(optional(member, "sources", []));
+    docRefs(optional(member, "source_files", []));
+    const reviews = optional(member, "document_reviews", []);
+    requireWorkspace(Array.isArray(reviews), "Document reviews must be a list.");
+    const seen = /* @__PURE__ */ new Set();
+    for (const review of reviews) {
+      fingerprints([review]);
+      const item = review;
+      if ("onboarding_sha256" in item) fingerprints([{ path: item.path, sha256: item.onboarding_sha256 }]);
+      requireWorkspace(!seen.has(item.path) && (member.documents ?? []).includes(item.path), `Repeated or unlinked document review for ${member.id}: ${item.path}`);
+      fingerprints(item.sources);
+      seen.add(item.path);
+    }
+    members.set(member.id, member);
+  }
+  for (const [id, member] of members) {
+    const dependencies = optional(member, "depends_on", []);
+    requireWorkspace(Array.isArray(dependencies), `Dependencies for ${id} must be a list of member IDs.`);
+    for (const dep of dependencies) {
+      validateId(dep);
+      requireWorkspace(dep !== id && members.has(dep), `Invalid dependency for ${id}: ${dep}`);
+    }
+  }
+  if ("workspace_member" in value) requireWorkspace(typeof value.workspace_member === "string" && members.has(value.workspace_member), "Unknown workspace member");
+  const result = Object.fromEntries(members);
+  componentModel(value, result);
+  return result;
+}
+
+// src/core/local-context.ts
+var LOCAL_START = "<!-- workspace-harness-kit:local-context:start -->";
+var LOCAL_END = "<!-- workspace-harness-kit:local-context:end -->";
+var DEFAULT_LOCAL_CONTEXT = ".harness/docs/workspace.local.md";
+var LEGACY_LOCAL_CONTEXT = ".harness/workspace.local.json";
+function localContextPath(value) {
+  const name = relativePath(value);
+  requireWorkspace(name.endsWith(".local.md"), "Local context must be a repository-relative *.local.md file");
+  return name;
+}
+function isLocalResource(file) {
+  return file.endsWith(".local.md") || file.endsWith(".local.json") || file === LEGACY_LOCAL_CONTEXT || file.startsWith(".harness/local-backups/") || file.startsWith(".harness/local-evidence/");
+}
+function validateLocalContext(value) {
+  schema(value);
+  const fields = ["schema_version", "checkouts", "machine", "tools", "environment", "access", "execution", "state", "onboarding_status"];
+  requireWorkspace(Object.keys(value).every((key) => fields.includes(key)), "Unknown local-context field; put project-specific state under state");
+  requireWorkspace(isObject(value.checkouts), "Local checkouts must be an object keyed by member ID");
+  if ("machine" in value) requireWorkspace(typeof value.machine === "string" && /^[a-f0-9]{64}$/.test(value.machine), "Invalid local machine fingerprint");
+  for (const [id, binding] of Object.entries(value.checkouts)) {
+    validateId(id);
+    requireWorkspace(isObject(binding) && Object.keys(binding).every((key) => ["path", "git_common_dir"].includes(key)), `Invalid checkout fields: ${id}`);
+    for (const field of ["path", "git_common_dir"]) requireWorkspace(typeof binding[field] === "string" && !!binding[field] && !/[\x00-\x1f\x7f]/.test(binding[field]), `Expected a local ${field} for ${id}`);
+  }
+  for (const field of ["tools", "environment", "access", "execution", "state", "onboarding_status"]) if (field in value) requireWorkspace(isObject(value[field]), `Local ${field} must be an object`);
+}
+function parseLocalContext(markdown) {
+  requireWorkspace(Buffer.byteLength(markdown, "utf8") <= 1024 * 1024, "Local context exceeds the 1 MiB limit");
+  const start2 = markdown.indexOf(LOCAL_START), end = markdown.indexOf(LOCAL_END);
+  if (start2 < 0 && end < 0) return void 0;
+  requireWorkspace(start2 >= 0 && end > start2 && markdown.indexOf(LOCAL_START, start2 + LOCAL_START.length) < 0 && markdown.indexOf(LOCAL_END, end + LOCAL_END.length) < 0, "Malformed or repeated local-context markers");
+  const content = markdown.slice(start2 + LOCAL_START.length, end).trim();
+  const match = /^```json\r?\n([\s\S]*?)\r?\n```$/.exec(content);
+  requireWorkspace(match && !match[1].includes("```"), "Local context needs exactly one JSON fenced block");
+  let data;
+  try {
+    data = JSON.parse(match[1]);
+  } catch {
+    throw new Error("Malformed local-context JSON");
+  }
+  validateLocalContext(data);
+  return data;
+}
+
+// src/adapters/files.ts
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { createHash, randomUUID } from "node:crypto";
+function stat(file, follow = true) {
+  try {
+    return follow ? fs.statSync(file) : fs.lstatSync(file);
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR"].includes(error.code ?? "")) return void 0;
+    throw error;
+  }
+}
+function resolvePath(file) {
+  const absolute = path.resolve(file);
+  try {
+    return fs.realpathSync(absolute);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    const parent = path.dirname(absolute);
+    if (parent === absolute) throw error;
+    return path.join(resolvePath(parent), path.basename(absolute));
+  }
+}
+function expandUser(file) {
+  return file === "~" ? os.homedir() : file.startsWith("~/") ? path.join(os.homedir(), file.slice(2)) : file;
+}
+function isWithin(root, file) {
+  const rel = path.relative(root, file);
+  return rel === "" || !rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel);
+}
+function within(root, value) {
+  const file = path.join(root, relativePath(value));
+  if (!isWithin(resolvePath(root), resolvePath(file))) throw new WorkspaceError(`File reference escapes its directory: ${value}`);
+  return file;
+}
+function hash(data) {
+  return createHash("sha256").update(data).digest("hex");
+}
+function fileHash(file) {
+  return hash(fs.readFileSync(file));
+}
+function readJson(file, fallback) {
+  if (!stat(file) && fallback !== void 0) return structuredClone(fallback);
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`Could not read JSON from ${file}: ${error.message}`);
+  }
+}
+
+// src/adapters/git.ts
+import path2 from "node:path";
+import { spawnSync } from "node:child_process";
+function git(directory, ...args) {
+  const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
+  for (const key of ["GIT_DIR", "GIT_COMMON_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX"]) delete env[key];
+  const result = spawnSync("git", ["-C", directory, ...args], { env, encoding: "utf8", timeout: 15e3, maxBuffer: 64 * 1024 * 1024 });
+  if (result.error) throw result.error;
+  return result.status === 0 ? result.stdout.replace(/\n+$/, "") : null;
+}
+function normalizedRemote(value) {
+  if (!value) return null;
+  let host, remotePath;
+  if (value.includes("://")) {
+    try {
+      const url = new URL(value), protocol = url.protocol.slice(0, -1);
+      if (!["http", "https", "ssh", "git"].includes(protocol) || !url.hostname) return null;
+      host = url.hostname.toLowerCase();
+      const defaults = { http: "80", https: "443", ssh: "22", git: "9418" };
+      if (url.port && url.port !== defaults[protocol]) host += `:${url.port}`;
+      remotePath = url.pathname;
+    } catch {
+      return null;
+    }
+  } else {
+    const match = /^(?:[^@:/]+@)?([^:/]+):([^?#]+)(?:[?#].*)?$/.exec(value);
+    if (!match) return null;
+    host = match[1].toLowerCase();
+    remotePath = match[2];
+  }
+  remotePath = remotePath.replace(/^\/+|\/+$/g, "").replace(/\.git$/, "");
+  if (!remotePath || remotePath.split("/").some((part) => ["", ".", ".."].includes(part))) return null;
+  return `${host}/${remotePath}`;
+}
+function checkout(directory) {
+  const rootValue = stat(directory)?.isDirectory() ? git(directory, "rev-parse", "--show-toplevel") : null;
+  requireWorkspace(rootValue, `Not a Git working directory: ${directory}`);
+  const root = resolvePath(rootValue), commonValue = git(root, "rev-parse", "--git-common-dir");
+  requireWorkspace(commonValue, `Could not determine the Git repository identity: ${root}`);
+  const common = resolvePath(path2.resolve(root, commonValue));
+  const superproject = git(root, "rev-parse", "--show-superproject-working-tree"), gitDir = git(root, "rev-parse", "--absolute-git-dir");
+  const kind = superproject ? "submodule" : gitDir && resolvePath(gitDir) !== common ? "worktree" : "checkout";
+  return {
+    path: root,
+    git_common_dir: common,
+    kind,
+    branch: git(root, "symbolic-ref", "--quiet", "--short", "HEAD"),
+    head: git(root, "rev-parse", "--verify", "HEAD"),
+    remote: normalizedRemote(git(root, "config", "--get", "remote.origin.url")),
+    harness: ["AGENTS.md", "CLAUDE.md"].some((name) => stat(path2.join(root, name))?.isFile())
+  };
+}
+
+// src/adapters/local-context.ts
+var MissingLocalContext = class extends Error {
+  name = "MissingLocalContext";
+};
+function machineFingerprint() {
+  return hash(json([os2.hostname(), os2.platform(), os2.arch(), os2.homedir()]));
+}
+function regular(root, relative2) {
+  const file = within(root, relative2), info = stat(file, false);
+  requireWorkspace(!info || info.isFile() && !info.isSymbolicLink(), `Local context must be a regular file: ${relative2}`);
+  requireWorkspace(!info || info.size <= 1024 * 1024, "Local context exceeds the 1 MiB limit");
+  return file;
+}
+function assertPrivate(root, relative2, requireIgnored = true) {
+  regular(root, relative2);
+  if (!git(root, "rev-parse", "--show-toplevel")) return;
+  const aliases = [.../* @__PURE__ */ new Set([relative2, path3.relative(root, resolvePath(within(root, relative2))).split(path3.sep).join("/")])];
+  for (const alias of aliases) {
+    requireWorkspace(git(root, "ls-files", "--error-unmatch", "--", alias) === null, `Untrack ${alias} before maintaining local context`);
+    if (requireIgnored) requireWorkspace(git(root, "check-ignore", "--quiet", "--", alias) !== null, `Git does not ignore local context: ${alias}`);
+  }
+}
+function localContextEntry(root, explicit) {
+  const manifest = readJson(within(root, ".harness/workspace.json"), {});
+  if (explicit !== void 0) return localContextPath(explicit);
+  if (isObject(manifest) && manifest.local_context !== void 0) return localContextPath(manifest.local_context);
+  const candidates = [];
+  for (const folder of ["", ".harness/docs"]) {
+    const directory = folder ? within(root, folder) : root;
+    if (!stat(directory)?.isDirectory()) continue;
+    for (const name of fs2.readdirSync(directory).filter((name2) => name2.endsWith(".local.md")).slice(0, 200)) {
+      const relative2 = [folder, name].filter(Boolean).join("/");
+      const file = regular(root, relative2);
+      if (fs2.readFileSync(file, "utf8").includes(LOCAL_START)) candidates.push(relative2);
+    }
+  }
+  requireWorkspace(candidates.length <= 1, "Multiple local-context entries; choose --local-context explicitly");
+  return candidates[0] ?? (stat(within(root, "AGENTS.local.md")) ? "AGENTS.local.md" : DEFAULT_LOCAL_CONTEXT);
+}
+function normalize(root, input) {
+  return { ...input, checkouts: Object.fromEntries(Object.entries(input.checkouts).map(([id, binding]) => [id, {
+    path: resolvePath(path3.resolve(root, expandUser(binding.path))),
+    git_common_dir: resolvePath(path3.resolve(root, expandUser(binding.git_common_dir)))
+  }])) };
+}
+function merge(left, right, field = "") {
+  if (left === void 0) return structuredClone(right);
+  if (right === void 0 || equal(left, right)) return structuredClone(left);
+  if (isObject(left) && isObject(right)) return Object.fromEntries([.../* @__PURE__ */ new Set([...Object.keys(left), ...Object.keys(right)])].map((key) => [key, merge(left[key], right[key], field ? `${field}.${key}` : key)]));
+  throw new Error(`Conflicting Markdown and legacy local-context field: ${field}; reconcile it before migration`);
+}
+function readLocalContext(root, options = {}) {
+  root = resolvePath(root);
+  const relative2 = localContextEntry(root, options.file), file = regular(root, relative2), legacy = regular(root, LEGACY_LOCAL_CONTEXT);
+  const markdown = stat(file) ? fs2.readFileSync(file, "utf8") : "";
+  if (stat(file)) assertPrivate(root, relative2, !options.planning);
+  if (stat(legacy)) assertPrivate(root, LEGACY_LOCAL_CONTEXT, !options.planning);
+  const parsed = parseLocalContext(markdown);
+  let old;
+  if (stat(legacy)) {
+    const input = readJson(legacy);
+    if (isObject(input)) {
+      const fields = ["schema_version", "checkouts", "machine", "tools", "environment", "access", "execution", "state", "onboarding_status"];
+      const extra = Object.fromEntries(Object.entries(input).filter(([key]) => !fields.includes(key)));
+      for (const key of Object.keys(extra)) delete input[key];
+      if (Object.keys(extra).length) input.state = { ...isObject(input.state) ? input.state : {}, legacy_fields: extra };
+    }
+    validateLocalContext(input);
+    old = normalize(root, input);
+  }
+  const data = merge(parsed ? normalize(root, parsed) : void 0, old);
+  return {
+    path: relative2,
+    markdown,
+    data: data ?? { schema_version: 1, checkouts: {} },
+    format: parsed ? "markdown" : old ? "legacy-json" : "missing",
+    legacy: old ? LEGACY_LOCAL_CONTEXT : null,
+    machine_matches: !data?.machine || data.machine === machineFingerprint()
+  };
+}
+function memberBinding(root, id) {
+  const context = readLocalContext(root);
+  if (!context.machine_matches) throw new MissingLocalContext("Local context belongs to another machine; rebind and verify readiness");
+  const members = validateManifest(readJson(within(root, ".harness/workspace.json")));
+  requireWorkspace(Object.hasOwn(members, id), `Unregistered source member: ${id}`);
+  const binding = context.data.checkouts[id];
+  if (!binding) throw new MissingLocalContext(`Missing local checkout binding: ${id}; run workspace plan --member ${id} MODE PATH, then apply`);
+  if (!stat(binding.path)?.isDirectory()) throw new MissingLocalContext(`Local checkout is unavailable: ${id}; supply its current path and rebind`);
+  const actual = checkout(binding.path);
+  requireWorkspace(actual.path === binding.path && actual.git_common_dir === binding.git_common_dir && actual.remote === (members[id].remote ?? null), `Local checkout identity differs for ${id}; inspect and rebind it`);
+  return binding;
+}
+
+// src/adapters/harness-check.ts
+import fs5 from "node:fs";
+import path5 from "node:path";
 
 // node_modules/smol-toml/dist/error.js
 /*!
@@ -1008,572 +2001,6 @@ var HAS_WELLFORMED = !!"".isWellFormed;
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// src/core/json.ts
-function sorted(value) {
-  if (Array.isArray(value)) return value.map(sorted);
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, sorted(item)]));
-  }
-  return value;
-}
-function equal(left, right) {
-  return JSON.stringify(sorted(left)) === JSON.stringify(sorted(right));
-}
-function json(value) {
-  return JSON.stringify(sorted(value), null, 2) + "\n";
-}
-function isObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-function fullMatch(pattern, value) {
-  return pattern.exec(value)?.[0] === value;
-}
-
-// src/core/evidence.ts
-var ARTIFACTS = ["git_commit", "oci_manifest_digest", "oci_index_digest", "package_version", "runtime_revision"];
-var EvidenceError = class extends Error {
-  name = "EvidenceError";
-};
-function requireEvidence(condition, message) {
-  if (!condition) throw new EvidenceError(message);
-}
-function object(value, name, required2, optional = []) {
-  requireEvidence(isObject(value), `${name} must be an object`);
-  requireEvidence(required2.every((key) => Object.hasOwn(value, key)), `${name} is missing required fields`);
-  requireEvidence(Object.keys(value).every((key) => [...required2, ...optional].includes(key)), `${name} has unknown fields`);
-}
-function text(value, name) {
-  requireEvidence(
-    typeof value === "string" && value.trim() && [...value].length <= 2e3,
-    `${name} must be nonempty text (at most 2000 characters)`
-  );
-}
-function identifier(value, name) {
-  requireEvidence(typeof value === "string" && fullMatch(/^[a-z0-9][a-z0-9._-]*$/, value), `Invalid ${name}`);
-}
-function validateTarget(value) {
-  object(value, "target", ["environment", "identity"]);
-  for (const [key, item] of Object.entries(value)) text(item, `target.${key}`);
-}
-function validateArtifact(value) {
-  object(value, "artifact", ["kind", "value"], ["platform"]);
-  requireEvidence(typeof value.kind === "string" && ARTIFACTS.includes(value.kind), "Unsupported artifact identity kind; mutable tags are not evidence");
-  text(value.value, "artifact.value");
-  if ("platform" in value) text(value.platform, "artifact.platform");
-  if (value.kind === "git_commit") requireEvidence(fullMatch(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/, value.value), "git_commit requires a full lowercase SHA");
-  else if (value.kind.startsWith("oci_")) requireEvidence(fullMatch(/^sha256:[a-f0-9]{64}$/, value.value), "OCI identities require a sha256 digest");
-  else requireEvidence(!["latest", "main", "master", "head", "unknown"].includes(value.value.toLowerCase()) && !/[\s*^~<>=]/.test(value.value), "Artifact must be an exact resolved version or revision");
-}
-
-// src/core/verification.ts
-function validateDiagnosticSpec(value, relative) {
-  object(value, "verification", ["max_age_seconds", "checks"]);
-  requireEvidence(Number.isSafeInteger(value.max_age_seconds) && Number(value.max_age_seconds) > 0, "max_age_seconds must be positive");
-  requireEvidence(Array.isArray(value.checks), "checks must be a list");
-  const ids = /* @__PURE__ */ new Set();
-  for (const check of value.checks) {
-    object(check, "diagnostic check", ["id", "layer", "target", "criterion"], ["artifact", "probe", "platform"]);
-    identifier(check.id, "check ID");
-    requireEvidence(!check.id.startsWith("harness-") && !ids.has(check.id), "Duplicate or reserved check ID");
-    ids.add(check.id);
-    requireEvidence(["tool", "access", "smoke", "ci"].includes(String(check.layer)), "Native agent and hook activation require session attestations, not command probes");
-    validateTarget(check.target);
-    text(check.criterion, "criterion");
-    if ("artifact" in check) validateArtifact(check.artifact);
-    if ("platform" in check) identifier(check.platform, "platform");
-    if ("probe" in check) {
-      requireEvidence(check.layer !== "ci", "CI execution requires an actual CI run reference");
-      object(check.probe, "probe", ["argv", "timeout_seconds"], ["cwd", "member", "expect_json"]);
-      requireEvidence(Array.isArray(check.probe.argv) && check.probe.argv.length > 0 && check.probe.argv.length <= 100, "Probe argv must be nonempty");
-      for (const arg of check.probe.argv) requireEvidence(typeof arg === "string" && arg.length > 0 && arg.length <= 2e3 && !/[\x00-\x1f]/.test(arg), "Use literal bounded probe arguments without secrets");
-      requireEvidence(Number.isSafeInteger(check.probe.timeout_seconds) && Number(check.probe.timeout_seconds) > 0 && Number(check.probe.timeout_seconds) <= 60, "Probe timeout must be between 1 and 60 seconds");
-      if ("cwd" in check.probe) relative(check.probe.cwd);
-      if ("member" in check.probe) identifier(check.probe.member, "probe member");
-      if ("expect_json" in check.probe) requireEvidence(isObject(check.probe.expect_json) && Object.keys(check.probe.expect_json).length > 0, "expect_json must be a nonempty object");
-      if (check.layer === "access" || check.layer === "smoke") requireEvidence(isObject(check.probe.expect_json) && equal(check.probe.expect_json.target, check.target), "Access and smoke probes must assert the observed target in expect_json.target");
-      if (check.artifact) requireEvidence(isObject(check.probe.expect_json) && equal(check.probe.expect_json.artifact, check.artifact), "Artifact-bound probes must assert expect_json.artifact");
-    }
-  }
-}
-
-// src/core/documentation.ts
-var DOCUMENT_TOPICS = ["index", "development", "testing", "environments", "release", "operations", "toolchain"];
-function requiredDocumentTopics(profile) {
-  if (!isObject(profile) || !isObject(profile.harness) || !isObject(profile.harness.artifacts) || profile.harness.artifacts.documents !== true) return [];
-  const activities = isObject(profile.activities) ? profile.activities : {};
-  const root = isObject(profile.documentation) && typeof profile.documentation.root === "string" ? profile.documentation.root : profile.harness.layout === "centralized" ? ".harness/docs" : "docs/harness";
-  const topics = ["index"];
-  if (activities.development === true) topics.push("development");
-  if (activities.testing === true) topics.push("testing");
-  if (activities.deployment === true || activities.operations === true) topics.push("environments");
-  if (activities.deployment === true) topics.push("release");
-  if (activities.operations === true) topics.push("operations");
-  if (["development", "testing", "deployment", "operations"].some((activity) => activities[activity] === true)) topics.push("toolchain");
-  return topics.map((topic) => ({ topic, path: `${root}/${topic}.md` }));
-}
-
-// src/core/harness.ts
-var HARNESS_TARGETS = ["codex", "claude-code"];
-var HARNESS_PARTS = ["documents", "skills", "commands", "agents", "rules", "settings", "hooks", "ci"];
-var HarnessError = class extends Error {
-  name = "HarnessError";
-};
-function requireHarness(condition, message) {
-  if (!condition) throw new HarnessError(message);
-}
-function shape(value, name, fields) {
-  requireHarness(isObject(value), `${name} must be an object`);
-  requireHarness(Object.keys(value).every((key) => fields.includes(key)), `${name} has unknown fields`);
-}
-function text2(value, name) {
-  requireHarness(typeof value === "string" && value.trim() && value.length <= 1e5 && !value.includes("\0"), `${name} must be nonempty text (at most 100000 characters)`);
-}
-function identifier2(value) {
-  requireHarness(typeof value === "string" && value.length <= 64 && fullMatch(/^[a-z][a-z0-9-]*$/, value), "Names must be lowercase hyphenated identifiers of at most 64 characters");
-}
-function harnessPath(value) {
-  requireHarness(typeof value === "string" && !/[\\:\x00-\x1f\x7f]/.test(value) && value.split("/").every((part) => part && part !== "." && part !== ".."), "Expected a normalized relative harness path");
-  requireHarness(!value.split("/").some((part) => [".git", "node_modules"].includes(part)), "Harness paths cannot address Git metadata or dependencies");
-}
-function list(value, name) {
-  requireHarness(Array.isArray(value), `${name} must be a list`);
-}
-function unique(values, name) {
-  requireHarness(new Set(values).size === values.length, `${name} contains duplicates`);
-}
-function targets(value) {
-  list(value, "targets");
-  requireHarness(value.length && value.every((item) => HARNESS_TARGETS.includes(item)), "Select codex, claude-code, or both");
-  unique(value, "targets");
-}
-function resources(value) {
-  list(value, "resources");
-  for (const item of value) {
-    shape(item, "resource", ["path", "body", "executable"]);
-    harnessPath(item.path);
-    text2(item.body, "resource.body");
-    if ("executable" in item) requireHarness(typeof item.executable === "boolean", "executable must be boolean");
-  }
-  unique(value.map((item) => item.path), "resource paths");
-}
-function validateHarnessSpec(value) {
-  shape(value, "harness spec", ["schema_version", "name", "language", "layout", "documentation_root", "targets", "sources", ...HARNESS_PARTS, "resources", "command_checks", "document_coverage", "provenance", "projections", "verification"]);
-  requireHarness(value.schema_version === 1, "Expected harness schema_version 1");
-  text2(value.name, "name");
-  targets(value.targets);
-  if ("language" in value) requireHarness(value.language === "en" || value.language === "zh-CN", "Generated entry-point language must be en or zh-CN");
-  if ("layout" in value) requireHarness(value.layout === "centralized" || value.layout === "native", "Choose centralized or native harness layout");
-  if ("documentation_root" in value) {
-    harnessPath(value.documentation_root);
-    requireHarness(value.documentation_root !== ".harness", "Documentation cannot use the harness state root");
-    if (value.layout === "centralized") requireHarness(value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Centralized documentation_root must be .harness/docs or a subdirectory");
-    else requireHarness(!value.documentation_root.startsWith(".harness/") || value.documentation_root === ".harness/docs" || value.documentation_root.startsWith(".harness/docs/"), "Documentation cannot use reserved harness state directories");
-  }
-  if (value.layout === "centralized") requireHarness(!["settings", "hooks", "ci"].some((part) => part in value), "Centralized layout does not register native settings, hooks or CI; choose native layout for those integrations");
-  list(value.sources, "sources");
-  for (const source of value.sources) {
-    shape(source, "source", ["member", "path"]);
-    harnessPath(source.path);
-    if ("member" in source) {
-      text2(source.member, "source.member");
-      requireHarness(fullMatch(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, source.member), "Invalid source member");
-    }
-  }
-  unique(value.sources.map((source) => json(source)), "sources");
-  if ("verification" in value) validateDiagnosticSpec(value.verification, harnessPath);
-  const sourceRef = (source) => {
-    shape(source, "source reference", ["member", "path"]);
-    harnessPath(source.path);
-    if ("member" in source) requireHarness(typeof source.member === "string" && fullMatch(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, source.member), "Invalid member reference");
-  };
-  if ("command_checks" in value) {
-    list(value.command_checks, "command_checks");
-    for (const check of value.command_checks) {
-      shape(check, "command check", ["document", "command", "member", "cwd", "phase", "reason"]);
-      harnessPath(check.document);
-      text2(check.command, "command");
-      if ("cwd" in check) harnessPath(check.cwd);
-      if ("member" in check) sourceRef({ member: check.member, path: "context" });
-      if ("phase" in check) requireHarness(["current", "planned"].includes(String(check.phase)), "Command phase must be current or planned");
-      if ("reason" in check) text2(check.reason, "command reason");
-      if (check.phase === "planned") text2(check.reason, "Planned commands require a reason");
-    }
-    unique(value.command_checks.map((check) => {
-      const item = check;
-      return json([item.document, item.command]);
-    }), "command contexts");
-  }
-  if ("document_coverage" in value) {
-    list(value.document_coverage, "document_coverage");
-    for (const entry of value.document_coverage) {
-      shape(entry, "document coverage", ["topic", "path", "heading"]);
-      requireHarness(DOCUMENT_TOPICS.includes(entry.topic), "Unknown documentation topic");
-      harnessPath(entry.path);
-      if ("heading" in entry) text2(entry.heading, "coverage heading");
-    }
-    unique(value.document_coverage.map((entry) => entry.topic), "document coverage topics");
-  }
-  if ("provenance" in value) {
-    list(value.provenance, "provenance");
-    for (const entry of value.provenance) {
-      shape(entry, "provenance entry", ["output", "sources"]);
-      harnessPath(entry.output);
-      list(entry.sources, "provenance sources");
-      for (const source of entry.sources) {
-        sourceRef(source);
-        requireHarness(value.sources.some((item) => json(item) === json(source)), "Provenance must reference a declared source");
-      }
-      unique(entry.sources.map(json), "provenance sources");
-    }
-    unique(value.provenance.map((entry) => entry.output), "provenance outputs");
-  }
-  if ("projections" in value) {
-    list(value.projections, "projections");
-    for (const entry of value.projections) {
-      shape(entry, "projection", ["source", "target"]);
-      sourceRef(entry.source);
-      sourceRef(entry.target);
-      requireHarness(json(entry.source) !== json(entry.target), "A projection needs different source and target files");
-      requireHarness(value.sources.some((item) => json(item) === json(entry.source)), "Projection owner must be a declared source");
-    }
-    unique(value.projections.map((entry) => json(entry.target)), "projection targets");
-  }
-  for (const kind of ["documents", "resources"]) if (kind in value) {
-    resources(value[kind]);
-    for (const resource of value[kind]) {
-      if (kind === "documents" && value.documentation_root !== void 0) requireHarness(resource.path.startsWith(`${value.documentation_root}/`), "Generated documents must stay inside documentation_root");
-      if (value.layout === "centralized") requireHarness(resource.path.startsWith(kind === "documents" ? ".harness/docs/" : ".harness/resources/"), "Centralized documents belong in .harness/docs/ and resources in .harness/resources/");
-      else requireHarness(!resource.path.startsWith(".harness/") || kind === "documents" && value.documentation_root !== void 0 && resource.path.startsWith(`${value.documentation_root}/`), "The .harness directory is reserved for generated state and runtimes");
-    }
-  }
-  for (const kind of ["skills", "commands", "agents"]) if (kind in value) {
-    list(value[kind], kind);
-    for (const item of value[kind]) {
-      shape(item, kind, ["name", "description", "body", "resources"]);
-      identifier2(item.name);
-      text2(item.description, "description");
-      text2(item.body, "body");
-      if ("resources" in item) {
-        requireHarness(kind === "skills", "Only skills can contain portable resources");
-        resources(item.resources);
-        requireHarness(!item.resources.some((resource) => resource.path === "SKILL.md"), "Skill resources cannot replace SKILL.md");
-      }
-    }
-    unique(value[kind].map((item) => item.name), `${kind} names`);
-  }
-  unique([...value.skills ?? [], ...value.commands ?? []].map((item) => item.name), "Skill and command names");
-  if ("rules" in value) {
-    list(value.rules, "rules");
-    for (const rule of value.rules) {
-      shape(rule, "rule", ["name", "body"]);
-      identifier2(rule.name);
-      text2(rule.body, "rule.body");
-    }
-    unique(value.rules.map((rule) => rule.name), "rule names");
-  }
-  if ("settings" in value) {
-    shape(value.settings, "settings", ["commands", "codex", "claude_code"]);
-    requireHarness(value.settings.codex !== void 0 || value.settings.claude_code !== void 0 || Array.isArray(value.settings.commands) && value.settings.commands.length > 0, "Settings need a native configuration or nonempty command policies");
-    if ("commands" in value.settings) {
-      list(value.settings.commands, "settings.commands");
-      for (const policy of value.settings.commands) {
-        shape(policy, "command policy", ["prefix", "decision", "reason"]);
-        list(policy.prefix, "prefix");
-        requireHarness(policy.prefix.length && policy.prefix.every((part) => typeof part === "string" && fullMatch(/^[a-zA-Z0-9_./:=@+-]+$/, part)), "Command prefixes require literal tokens without whitespace or shell metacharacters");
-        requireHarness(["ask", "deny"].includes(policy.decision), "Command policy must ask or deny");
-        text2(policy.reason, "reason");
-      }
-    }
-    if ("codex" in value.settings) {
-      requireHarness(value.targets.includes("codex"), "Codex settings require the codex target");
-      shape(value.settings.codex, "codex settings", ["sandbox_mode", "approval_policy"]);
-      requireHarness(["read-only", "workspace-write"].includes(value.settings.codex.sandbox_mode), "Choose a read-only or workspace-write sandbox");
-      requireHarness(["on-request", "never"].includes(value.settings.codex.approval_policy), "Unsupported approval policy");
-    }
-    if ("claude_code" in value.settings) {
-      requireHarness(value.targets.includes("claude-code"), "Claude settings require the claude-code target");
-      shape(value.settings.claude_code, "claude_code settings", ["defaultMode"]);
-      requireHarness(["default", "plan", "dontAsk"].includes(value.settings.claude_code.defaultMode), "Unsupported Claude permission mode");
-    }
-  }
-  if ("hooks" in value) {
-    shape(value.hooks, "hooks", ["guards", "cases"]);
-    list(value.hooks.guards, "guards");
-    list(value.hooks.cases, "cases");
-    requireHarness(value.hooks.guards.length > 0 && value.hooks.cases.length > 1, "Hooks need guards and positive/negative cases");
-    for (const guard of value.hooks.guards) {
-      shape(guard, "guard", ["id", "contains_all", "reason"]);
-      identifier2(guard.id);
-      text2(guard.reason, "guard.reason");
-      list(guard.contains_all, "contains_all");
-      requireHarness(guard.contains_all.length > 0, "A guard needs nonempty command fragments");
-      for (const fragment of guard.contains_all) text2(fragment, "command fragment");
-    }
-    unique(value.hooks.guards.map((guard) => guard.id), "guard IDs");
-    for (const example of value.hooks.cases) {
-      shape(example, "hook case", ["name", "input", "expected"]);
-      text2(example.name, "case.name");
-      requireHarness(isObject(example.input), "Hook input must be an object");
-      requireHarness(["pass", "deny"].includes(example.expected), "Hook case expects pass or deny");
-    }
-    const cases = value.hooks.cases, guards = value.hooks.guards;
-    unique(cases.map((example) => example.name), "case names");
-    requireHarness(cases.some((example) => example.expected === "pass"), "Hooks need a non-blocking case");
-    for (const guard of guards) requireHarness(cases.some((example) => example.expected === "deny" && evaluateGuard([guard], example.input).guard === guard.id), `Missing blocking case for guard ${guard.id}`);
-  }
-  if ("ci" in value) {
-    shape(value.ci, "ci", ["provider", "checks"]);
-    requireHarness(value.ci.provider === "github-actions", "Currently supported CI provider: github-actions");
-    list(value.ci.checks, "ci.checks");
-    for (const check of value.ci.checks) {
-      shape(check, "CI check", ["name", "run", "working_directory"]);
-      text2(check.name, "CI check name");
-      text2(check.run, "CI command");
-      if ("working_directory" in check) harnessPath(check.working_directory);
-    }
-  }
-}
-function evaluateGuard(guards, input) {
-  if (!isObject(input)) return { decision: "deny", reason: "Malformed hook input" };
-  if (input.hook_event_name !== "PreToolUse") return { decision: "pass" };
-  if (!["Bash", "exec_command", "shell_command"].includes(input.tool_name)) return { decision: "pass" };
-  const args = input.tool_input;
-  const command = isObject(args) ? args.command ?? args.cmd : void 0;
-  if (typeof command !== "string" || command.length > 256 * 1024) return { decision: "deny", reason: "Cannot inspect this shell tool input" };
-  const normalized = command.replace(/\s+/g, " ");
-  const guard = guards.find((item) => item.contains_all.every((fragment) => normalized.includes(fragment.replace(/\s+/g, " "))));
-  return guard ? { decision: "deny", reason: guard.reason, guard: guard.id } : { decision: "pass" };
-}
-function harnessDocumentRoot(spec) {
-  return spec.documentation_root ?? (spec.layout === "centralized" ? ".harness/docs" : "docs/harness");
-}
-function harnessConfiguration(spec, artifacts) {
-  const kinds = {
-    documents: ["document"],
-    skills: ["skill", "skill-resource"],
-    commands: ["command"],
-    agents: ["agent"],
-    rules: ["rule"],
-    settings: ["settings"],
-    hooks: ["hook"],
-    ci: ["ci"]
-  };
-  const parts = Object.fromEntries(HARNESS_PARTS.map((part) => [part, spec[part] === void 0 ? [] : artifacts.filter((file) => kinds[part].includes(file.kind) || part === "hooks" && (file.path === ".claude/settings.json" || file.path === ".harness/runtime/hook.mjs")).map((file) => file.path)]));
-  return {
-    layout: spec.layout ?? "native",
-    discovery: spec.layout === "centralized" ? "entrypoint-routed" : "native",
-    documentation_policy: { root: harnessDocumentRoot(spec), new_ai_documents: "inside-root", existing_documents: "ask-before-moving", enforcement: "agent-instructions" },
-    kind: HARNESS_PARTS.some((part) => part !== "documents" && parts[part].length) ? "repository-harness" : parts.documents.length ? "documents-only" : "entrypoints-only",
-    targets: spec.targets.map((target) => ({ target, entrypoint: target === "codex" ? "AGENTS.md" : "CLAUDE.md" })),
-    parts
-  };
-}
-function frontmatter(item, extra = "") {
-  return `---
-name: ${JSON.stringify(item.name)}
-description: ${JSON.stringify(item.description)}
-${extra}---
-
-${item.body.trim()}
-`;
-}
-function renderHarness(spec, runtimes) {
-  validateHarnessSpec(spec);
-  const chinese = spec.language === "zh-CN";
-  const artifacts = [], routes = [];
-  const add = (path4, kind, content, format = "text", executable = false) => artifacts.push({ path: path4, kind, format, content, executable });
-  for (const document of spec.documents ?? []) {
-    add(document.path, "document", document.body.trim() + "\n");
-    routes.push(`- [${document.path}](${document.path})`);
-  }
-  for (const resource of spec.resources ?? []) add(resource.path, "resource", resource.body, "text", resource.executable);
-  if (spec.layout === "centralized") {
-    for (const skill of spec.skills ?? []) {
-      const folder = `.harness/skills/${skill.name}`;
-      add(`${folder}/SKILL.md`, "skill", frontmatter(skill));
-      routes.push(`- ${skill.description} — [${skill.name}](${folder}/SKILL.md)`);
-      for (const resource of skill.resources ?? []) add(`${folder}/${resource.path}`, "skill-resource", resource.body, "text", resource.executable);
-    }
-    for (const command of spec.commands ?? []) {
-      const file = `.harness/commands/${command.name}.md`;
-      add(file, "command", frontmatter(command));
-      routes.push(chinese ? `- 按需执行「${command.description}」，阅读 [${command.name}](${file})。` : `- For ${command.description}, follow [${command.name}](${file}).`);
-    }
-    for (const agent of spec.agents ?? []) {
-      const file = `.harness/agents/${agent.name}.md`;
-      add(file, "agent", frontmatter(agent));
-      routes.push(chinese ? `- 需要且允许委派时，按 [${agent.name}](${file}) 的任务说明执行：${agent.description}` : `- When delegation is appropriate and allowed, use [${agent.name}](${file}): ${agent.description}`);
-    }
-    for (const rule of spec.rules ?? []) {
-      const file = `.harness/rules/${rule.name}.md`;
-      add(file, "rule", rule.body.trim() + "\n");
-      routes.push(chinese ? `- 必读规则：[${rule.name}](${file})。` : `- Required guidance: [${rule.name}](${file}).`);
-    }
-  }
-  for (const target of spec.layout === "centralized" ? [] : spec.targets) {
-    const base = target === "codex" ? ".agents" : ".claude";
-    for (const skill of spec.skills ?? []) {
-      const folder = `${base}/skills/${skill.name}`;
-      add(`${folder}/SKILL.md`, "skill", frontmatter(skill));
-      routes.push(`- ${target}: ${skill.description} — [${skill.name}](${folder}/SKILL.md)`);
-      for (const resource of skill.resources ?? []) add(`${folder}/${resource.path}`, "skill-resource", resource.body, "text", resource.executable);
-    }
-    for (const command of spec.commands ?? []) {
-      const file = target === "codex" ? `${base}/skills/${command.name}/SKILL.md` : `${base}/commands/${command.name}.md`;
-      add(file, "command", frontmatter(command, target === "claude-code" ? "disable-model-invocation: true\n" : ""));
-      if (target === "codex") add(`${base}/skills/${command.name}/agents/openai.yaml`, "command", "policy:\n  allow_implicit_invocation: false\n");
-      routes.push(chinese ? `- ${target}：调用 ${target === "codex" ? "$" : "/"}${command.name}，参见[操作步骤](${file})。` : `- ${target}: invoke ${target === "codex" ? "$" : "/"}${command.name} — [procedure](${file})`);
-    }
-    for (const agent of spec.agents ?? []) {
-      const file = target === "codex" ? `.codex/agents/${agent.name}.toml` : `.claude/agents/${agent.name}.md`;
-      const content = target === "codex" ? `name = ${JSON.stringify(agent.name)}
-description = ${JSON.stringify(agent.description)}
-developer_instructions = ${JSON.stringify(agent.body)}
-` : frontmatter(agent);
-      add(file, "agent", content);
-      routes.push(chinese ? `- ${target}：任务需要时，将「${agent.description}」委派给 [${agent.name}](${file})；沿用父级权限。` : `- ${target}: delegate ${agent.description} to [${agent.name}](${file}) when the task calls for it; parent permissions apply.`);
-    }
-    for (const rule of spec.rules ?? []) {
-      const file = target === "codex" ? `.harness/rules/${rule.name}.md` : `.claude/rules/${rule.name}.md`;
-      add(file, "rule", rule.body.trim() + "\n");
-      routes.push(chinese ? `- ${target} 的必读规则：在适用范围内执行操作前，阅读 [${rule.name}](${file})。` : `- Required guidance for ${target}: read [${rule.name}](${file}) before acting in its scope.`);
-    }
-  }
-  const introduction = chinese ? "在选定的工作区中遵循已有说明，并通过现有的本地映射定位成员仓库。" : "Use the selected workspace and its existing instructions. Resolve member checkout paths through the established local mapping.";
-  const verification = chinese ? "配置与本地验证参见 [harness 配置](.harness/harness.json)。修改后运行 `node .harness/runtime/check.mjs --workspace .`。检查通过不代表 Agent 已加载配置，也不代表已具备部署条件。" : "Configuration and local verification: [harness specification](.harness/harness.json). Run `node .harness/runtime/check.mjs --workspace .` after changes. A passing check does not establish agent activation or deployment readiness.";
-  const routing = spec.layout === "centralized" ? chinese ? "\n\nAGENTS.md 是统一入口正文；其他宿主入口软链到它。按任务读取下列流程和规则；这些内容通过本入口使用，不注册宿主原生斜杠命令、自动发现的 Skills 或子代理。" : "\n\nAGENTS.md is the canonical entry point; other host entry points link to it. Read the relevant procedures and rules below. These are entry-point-routed instructions, not registered native commands, automatically discovered Skills or agents." : "";
-  const documentRoot = harnessDocumentRoot(spec);
-  const documentPolicy = chinese ? `## 文档存放规则
-
-后续所有由 AI 新增的项目文档（包括计划、设计、分析、验证报告和交接记录）必须放在 \`${documentRoot}/\`，按主题组织并更新该目录的索引。 本仓库内的文件和工作流按用途命名，省略重复的仓库名或项目名前缀；只有需要区分组件时才加限定词。不得在仓库根目录或其他目录新增此类文档或重复副本。AGENTS.md 与宿主入口只保留规则和导航；工具要求的配置、Skill 和运行文件按各自约定存放。
-
-发现其他位置的现有文档时，先列出原路径、拟迁入路径和需要更新的引用，询问用户选择迁入哪些文档、保留哪些文档；已有明确选择时直接沿用。未经选择不移动或删除原文，保留原位的文档通过链接引用。迁移须保留内容，检查重名、修复相对链接及调用方，再核对来源与文档完整性。` : `## Documentation location
-
-All new project documentation written by AI, including plans, designs, analyses, validation reports and handoff notes, must live under \`${documentRoot}/\`. Organize it by topic and update that directory's index. Name repository-local files and workflows by purpose, without repeating the repository or product name; add a component qualifier only when needed to distinguish workflows. Do not create these documents or duplicate copies at the repository root or elsewhere. AGENTS.md and host entry points contain rules and navigation; tool-required configuration, Skills and runtime files retain their prescribed locations.
-
-When existing documents are found elsewhere, list their current paths, proposed destinations and affected references, then ask the user which to move and which to keep. Reuse an explicit prior choice. Do not move or delete unselected originals; link to documents kept in place. For a selected move, preserve content, check collisions, repair relative links and callers, then verify sources and documentation completeness.`;
-  const entry = `# ${spec.name}
-
-${introduction}${routing}
-
-${documentPolicy}
-
-${routes.join("\n")}
-
-${verification}
-`;
-  if (spec.targets.includes("codex") || spec.layout === "centralized") add("AGENTS.md", "entrypoint", entry, "entrypoint");
-  if (spec.targets.includes("claude-code")) add("CLAUDE.md", spec.layout === "centralized" ? "entrypoint-alias" : "entrypoint", spec.layout === "centralized" ? "AGENTS.md" : entry, spec.layout === "centralized" ? "symlink" : "entrypoint");
-  if (spec.targets.includes("codex") && spec.settings?.codex) add(".codex/config.toml", "settings", json(spec.settings.codex), "toml-merge");
-  if (spec.targets.includes("codex") && spec.settings?.commands?.length) {
-    add(".codex/rules/harness.rules", "settings", spec.settings.commands.map((policy) => `prefix_rule(pattern = ${JSON.stringify(policy.prefix)}, decision = ${JSON.stringify(policy.decision === "deny" ? "forbidden" : "prompt")}, justification = ${JSON.stringify(policy.reason)})`).join("\n") + "\n");
-  }
-  const hookCommand = 'node "$(git rev-parse --show-toplevel)/.harness/runtime/hook.mjs"';
-  const hooks = { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: hookCommand, timeout: 10 }] }] };
-  if (spec.targets.includes("codex") && spec.hooks) add(".codex/hooks.json", "hook", json({ hooks }), "json-merge");
-  if (spec.targets.includes("claude-code") && (spec.settings || spec.hooks)) {
-    const settings = {}, permissions = {};
-    for (const decision of ["ask", "deny"]) {
-      const entries = (spec.settings?.commands ?? []).filter((policy) => policy.decision === decision).flatMap((policy) => [`Bash(${policy.prefix.join(" ")})`, `Bash(${policy.prefix.join(" ")} *)`]);
-      if (entries.length) permissions[decision] = entries;
-    }
-    if (spec.settings?.claude_code) permissions.defaultMode = spec.settings.claude_code.defaultMode;
-    if (Object.keys(permissions).length) settings.permissions = permissions;
-    if (spec.hooks) settings.hooks = hooks;
-    add(".claude/settings.json", "settings", json(settings), "json-merge");
-  }
-  if (spec.ci) {
-    add(".github/workflows/harness-gate.yml", "ci", json({
-      name: "Harness gate",
-      on: { pull_request: {}, push: {}, workflow_call: {} },
-      permissions: { contents: "read" },
-      jobs: { harness: { "runs-on": "ubuntu-latest", "timeout-minutes": 10, steps: [
-        { uses: "actions/checkout@v7", with: { "persist-credentials": false } },
-        { uses: "actions/setup-node@v7", with: { "node-version": "24", "package-manager-cache": false } },
-        { name: "Validate generated harness and hook cases", run: "node .harness/runtime/check.mjs --workspace ." },
-        ...spec.ci.checks.map((check) => ({ name: check.name, run: check.run, ...check.working_directory ? { "working-directory": check.working_directory } : {} }))
-      ] } }
-    }));
-  }
-  add(".harness/runtime/check.mjs", "runtime", runtimes.check, "text", true);
-  if (spec.hooks) add(".harness/runtime/hook.mjs", "runtime", runtimes.hook, "text", true);
-  add(".harness/runtime/THIRD-PARTY-NOTICES.txt", "runtime", runtimes.notices);
-  add(".harness/harness.json", "spec", json(spec));
-  unique(artifacts.map((artifact) => artifact.path), "generated paths");
-  const paths = artifacts.map((artifact) => artifact.path.toLowerCase()).sort();
-  unique(paths, "case-insensitive generated paths");
-  const names = new Set(paths);
-  for (const entry2 of spec.provenance ?? []) requireHarness(artifacts.some((item) => item.path === entry2.output), `Unknown provenance output: ${entry2.output}`);
-  for (const entry2 of spec.command_checks ?? []) requireHarness(artifacts.some((item) => item.path === entry2.document), `Unknown command document: ${entry2.document}`);
-  for (const entry2 of spec.document_coverage ?? []) requireHarness(spec.documents?.some((item) => item.path === entry2.path) || spec.sources.some((source) => !source.member && source.path === entry2.path), `Coverage must reference a generated document or declared local source: ${entry2.path}`);
-  for (const file of paths) {
-    const parts = file.split("/");
-    for (let index = 1; index < parts.length; index++) requireHarness(!names.has(parts.slice(0, index).join("/")), "A generated file cannot also be a parent directory");
-  }
-  return artifacts;
-}
-
-// src/adapters/files.ts
-import fs from "node:fs";
-import path from "node:path";
-import { createHash, randomUUID } from "node:crypto";
-
-// src/core/registry.ts
-var WorkspaceError = class extends Error {
-  name = "WorkspaceError";
-};
-function requireWorkspace(condition, message) {
-  if (!condition) throw new WorkspaceError(message);
-}
-function relativePath(value) {
-  requireWorkspace(typeof value === "string" && value.length > 0 && !/[\\:\0]/.test(value) && value.split("/").every((part) => part && part !== "." && part !== ".."), `Invalid relative file reference: ${String(value)}`);
-  return value;
-}
-
-// src/adapters/files.ts
-function stat(file, follow = true) {
-  try {
-    return follow ? fs.statSync(file) : fs.lstatSync(file);
-  } catch (error) {
-    if (["ENOENT", "ENOTDIR"].includes(error.code ?? "")) return void 0;
-    throw error;
-  }
-}
-function resolvePath(file) {
-  const absolute = path.resolve(file);
-  try {
-    return fs.realpathSync(absolute);
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    const parent = path.dirname(absolute);
-    if (parent === absolute) throw error;
-    return path.join(resolvePath(parent), path.basename(absolute));
-  }
-}
-function isWithin(root, file) {
-  const rel = path.relative(root, file);
-  return rel === "" || !rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel);
-}
-function within(root, value) {
-  const file = path.join(root, relativePath(value));
-  if (!isWithin(resolvePath(root), resolvePath(file))) throw new WorkspaceError(`File reference escapes its directory: ${value}`);
-  return file;
-}
-function hash(data) {
-  return createHash("sha256").update(data).digest("hex");
-}
-function fileHash(file) {
-  return hash(fs.readFileSync(file));
-}
-function readJson(file, fallback) {
-  if (!stat(file) && fallback !== void 0) return structuredClone(fallback);
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new Error(`Could not read JSON from ${file}: ${error.message}`);
-  }
-}
-
 // src/adapters/harness.ts
 var HARNESS_RECEIPT = ".harness/generated.json";
 var HARNESS_SPEC = ".harness/harness.json";
@@ -1582,14 +2009,12 @@ function currentProfileHash(root) {
   return isObject(manifest) && manifest.onboarding ? hash(json(manifest.onboarding)) : null;
 }
 function sourcePath(root, source) {
+  requireHarness(!isLocalResource(source.path), "Local context cannot be a shared source");
   if (!source.member) return within(root, source.path);
   const manifest = readJson(within(root, ".harness/workspace.json"));
   requireHarness(isObject(manifest) && Array.isArray(manifest.members) && manifest.members.some((member) => isObject(member) && member.id === source.member), `Unregistered source member: ${source.member}`);
-  const local = readJson(within(root, ".harness/workspace.local.json"));
-  const bindings = isObject(local) && isObject(local.checkouts) ? local.checkouts : {};
-  const binding = bindings[source.member];
-  requireHarness(isObject(binding) && typeof binding.path === "string", `Missing source binding: ${source.member}`);
-  return within(resolvePath(binding.path), source.path);
+  requireHarness(!isLocalResource(source.path), "Local context cannot be a shared source");
+  return within(memberBinding(root, source.member).path, source.path);
 }
 function readHarnessReceipt(root) {
   const file = within(root, HARNESS_RECEIPT);
@@ -1622,15 +2047,17 @@ function assertSelection(root, spec) {
   const manifest = readJson(within(root, ".harness/workspace.json"), {});
   const onboarding = isObject(manifest) && isObject(manifest.onboarding) ? manifest.onboarding : {};
   if (onboarding.language !== void 0) {
-    const local = readJson(within(root, ".harness/workspace.local.json"), {});
-    const checkouts = isObject(local) && isObject(local.checkouts) ? local.checkouts : {};
+    const context = readLocalContext(root);
+    const checkouts = context.data.checkouts;
     const self = isObject(manifest) && Array.isArray(manifest.members) ? manifest.members.find((member) => {
+      if (isObject(member) && manifest.workspace_member === member.id) return true;
       if (!isObject(member) || typeof member.id !== "string") return false;
       const binding = checkouts[member.id];
       return isObject(binding) && typeof binding.path === "string" && resolvePath(binding.path) === root;
     }) : void 0;
     const language = isObject(self) && typeof self.language === "string" ? self.language : onboarding.language;
-    requireHarness((spec.language ?? "en") === language, "Generation language differs from the saved initialization choice");
+    const legacyLanguages = isObject(manifest) && Array.isArray(manifest.members) ? manifest.members.filter(isObject).map((member) => member.language).filter((value) => typeof value === "string") : [];
+    requireHarness((spec.language ?? "en") === language || !self && context.format === "missing" && legacyLanguages.includes(spec.language ?? "en"), "Generation language differs from the saved initialization choice");
   }
   if (isObject(onboarding.documentation) && typeof onboarding.documentation.root === "string") {
     requireHarness(harnessDocumentRoot(spec) === onboarding.documentation.root, "Generation documentation_root differs from the saved initialization choice");
@@ -1649,8 +2076,8 @@ function assertSelection(root, spec) {
 }
 
 // src/adapters/commands.ts
-import fs2 from "node:fs";
-import path2 from "node:path";
+import fs3 from "node:fs";
+import path4 from "node:path";
 
 // src/core/commands.ts
 var start = /^(?:(?:npm|pnpm|yarn|bun)\s+(?:run|test|start)\b|make(?:\s|$)|(?:node|python3?|bash|sh)\s+|\.\/)/;
@@ -1730,7 +2157,7 @@ function checkCommands(root, spec, documents, local = false) {
         row.reason = reference.reason;
         continue;
       }
-      const base = row.member ? path2.dirname(sourcePath(root, { member: row.member, path: "__harness_context__" })) : root;
+      const base = row.member ? path4.dirname(sourcePath(root, { member: row.member, path: "__harness_context__" })) : root;
       const directory = row.cwd ? within(base, row.cwd) : base;
       const source = (file) => {
         row.sources.push([row.cwd, file].filter(Boolean).join("/"));
@@ -1754,7 +2181,7 @@ function checkCommands(root, spec, documents, local = false) {
           row.reason = "No Makefile in the documented working directory";
           continue;
         }
-        const declarations = makeDeclarations(fs2.readFileSync(source(name), "utf8"));
+        const declarations = makeDeclarations(fs3.readFileSync(source(name), "utf8"));
         const missing = reference.targets.filter((target) => !declarations.targets.includes(target));
         row.status = declarations.incomplete ? "pending" : missing.length ? "failed" : "passed";
         row.reason = declarations.incomplete ? "Dynamic, included or conditional Make rules require review" : missing.length ? `Missing Make targets: ${missing.join(", ")}` : "Literal Make targets declared; execution not verified";
@@ -1762,7 +2189,12 @@ function checkCommands(root, spec, documents, local = false) {
         row.status = stat(source(reference.path))?.isFile() ? "passed" : "failed";
         row.reason = row.status === "passed" ? "Referenced script exists; execution not verified" : `Missing script: ${reference.path}`;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof MissingLocalContext) {
+        row.status = "pending";
+        row.reason = error.message;
+        continue;
+      }
       row.status = "failed";
       row.reason = "Command context or declaration is invalid, unavailable or outside the selected checkout";
     }
@@ -1821,7 +2253,7 @@ function harnessSync(root, local = false) {
 }
 
 // src/adapters/documentation.ts
-import fs3 from "node:fs";
+import fs4 from "node:fs";
 
 // src/core/markdown.ts
 function proseLines(body) {
@@ -1912,7 +2344,7 @@ function checkDocumentCoverage(root, spec) {
       if (!spec.documents?.some((item) => item.path === entry.path) && !spec.sources.some((source) => !source.member && source.path === entry.path)) return { ...entry, status: "missing", reason: "Topic needs a generated guide or an explicit mapping to a declared source" };
       const file = within(root, entry.path);
       if (!stat(file)?.isFile()) return { ...entry, status: "missing", reason: "Document is unavailable" };
-      const section = markdownSection(fs3.readFileSync(file, "utf8"), heading);
+      const section = markdownSection(fs4.readFileSync(file, "utf8"), heading);
       if (section === void 0) return { ...entry, status: "missing", reason: "Mapped heading is absent or ambiguous" };
       if (!section) return { ...entry, status: "missing", reason: "Document or mapped section has no body" };
       return { ...entry, status: "present", reason: "Guide content is present; factual accuracy and executable handoff require review" };
@@ -1937,7 +2369,7 @@ function checkHarness(root, local = false) {
   const documents = [];
   const spec = readJson(within(root, HARNESS_SPEC));
   validateHarnessSpec(spec);
-  const rendered = renderHarness(spec, { check: "", hook: "", notices: "" });
+  const rendered = renderHarness(spec, { check: "", hook: "", notices: "", localContext: localContextEntry(root) });
   const configuration = harnessConfiguration(spec, rendered);
   const expected = new Set(rendered.map((artifact) => artifact.path));
   try {
@@ -1959,7 +2391,7 @@ function checkHarness(root, local = false) {
       const file = within(root, record.path);
       const expectedFile = rendered.find((item) => item.path === record.path);
       if (record.symlink_target || expectedFile?.format === "symlink") {
-        if (expectedFile?.format !== "symlink" || record.symlink_target !== expectedFile.content || !stat(file, false)?.isSymbolicLink() || fs4.readlinkSync(file) !== expectedFile.content || record.sha256 !== hash(expectedFile.content) || !stat(file)?.isFile()) errors.push(`Entry-point symlink changed: ${record.path}`);
+        if (expectedFile?.format !== "symlink" || record.symlink_target !== expectedFile.content || !stat(file, false)?.isSymbolicLink() || fs5.readlinkSync(file) !== expectedFile.content || record.sha256 !== hash(expectedFile.content) || !stat(file)?.isFile()) errors.push(`Entry-point symlink changed: ${record.path}`);
         continue;
       }
       if (spec.layout === "centralized" && record.path === "AGENTS.md" && stat(file, false)?.isSymbolicLink()) errors.push("Centralized AGENTS.md must be a regular file");
@@ -1969,8 +2401,8 @@ function checkHarness(root, local = false) {
         continue;
       }
       if (fileHash(file) !== record.sha256) errors.push(`Generated file changed: ${record.path}`);
-      if (record.executable && !(fs4.statSync(file).mode & 64)) errors.push(`Generated script is not executable: ${record.path}`);
-      const content = fs4.readFileSync(file, "utf8");
+      if (record.executable && !(fs5.statSync(file).mode & 64)) errors.push(`Generated script is not executable: ${record.path}`);
+      const content = fs5.readFileSync(file, "utf8");
       if (record.path.endsWith(".md") || (spec.command_checks ?? []).some((check) => record.logical_paths.includes(check.document))) {
         for (const alias of record.logical_paths) documents.push({ path: alias, body: content });
       }
@@ -1982,11 +2414,15 @@ function checkHarness(root, local = false) {
         for (const { destination: link } of links.links) {
           if (/^[a-z][a-z0-9+.-]*:/i.test(link)) continue;
           const [pathname, fragment] = link.split("#");
-          const relative = path3.relative(root, pathname ? path3.resolve(path3.dirname(file), decodeURIComponent(pathname)) : file).split(path3.sep).join("/");
-          harnessPath(relative);
-          const target = within(root, relative), info = stat(target);
+          const relative2 = path5.relative(root, pathname ? path5.resolve(path5.dirname(file), decodeURIComponent(pathname)) : file).split(path5.sep).join("/");
+          if (relative2.endsWith(".local.md")) {
+            localContextPath(relative2);
+            continue;
+          }
+          harnessPath(relative2);
+          const target = within(root, relative2), info = stat(target);
           if (!info) errors.push(`Broken link in ${record.path}: ${link}`);
-          else if (fragment && info.isFile() && relative.endsWith(".md") && !markdownHasAnchor(fs4.readFileSync(target, "utf8"), decodeURIComponent(fragment))) errors.push(`Broken Markdown anchor in ${record.path}: ${link}`);
+          else if (fragment && info.isFile() && relative2.endsWith(".md") && !markdownHasAnchor(fs5.readFileSync(target, "utf8"), decodeURIComponent(fragment))) errors.push(`Broken Markdown anchor in ${record.path}: ${link}`);
         }
       }
     } catch (error) {
@@ -2001,8 +2437,9 @@ function checkHarness(root, local = false) {
     }
     try {
       if (fileHash(sourcePath(root, source)) !== source.sha256) errors.push(`Source changed: ${source.member ?? "workspace"}/${source.path}`);
-    } catch {
-      errors.push(`Source unavailable: ${source.member ?? "workspace"}/${source.path}`);
+    } catch (error) {
+      if (error instanceof MissingLocalContext) pending.push(error.message);
+      else errors.push(`Source unavailable: ${source.member ?? "workspace"}/${source.path}: ${error.message}`);
     }
   }
   const cases = (spec.hooks?.cases ?? []).map((example) => {

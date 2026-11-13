@@ -1,6 +1,6 @@
 {
   "name": "workspace-harness-kit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Workspace discovery and deterministic release evidence for Agent Skills",
   "type": "module",
   "license": "MIT",
@@ -47,6 +47,10 @@
     "./install": {
       "types": "./dist/types/adapters/install.d.ts",
       "import": "./dist/install.js"
+    },
+    "./local-context": {
+      "types": "./dist/types/adapters/local-context.d.ts",
+      "import": "./dist/local-context.js"
     }
   },
   "bin": {

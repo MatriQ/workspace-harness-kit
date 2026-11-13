@@ -62,7 +62,7 @@ Codex Skills 安装到 `~/.agents/skills/`，Claude Code Skills 安装到 `~/.cl
 
 初始化会列出 harness 文档目录外的现有文档、拟迁入路径与受影响引用，询问哪些迁入、哪些保留。已保存的逐文档选择会被复用，辅助工具不会自动移动文档。专用 Skill 和入口符号链接保留原有行为。仅在选择对应工作时加入部署、运维指南。工具安装、身份登录、目标访问、应用执行分别报告结果。再次初始化会复用已保存的选择，处理缺失或变化的部分。详见[渐进式初始化流程](skills/harness-init/references/onboarding.md)和[生成流程及原生 Agent 适配](skills/harness-init/references/generation.md)。
 
-新仓库初始化优先使用 `layout: "centralized"`：指南、工作流、规则及生成状态统一保存在 `.harness/`，根目录只有一份 `AGENTS.md` 正文；选择 Claude Code 时生成 `CLAUDE.md -> AGENTS.md` 相对软链。Agent 通过入口读取共享流程，这种布局不注册原生 Skills、斜杠命令或子代理，也不生成原生设置、hook 和 CI。
+新仓库初始化优先使用 `layout: "centralized"`：指南、工作流、规则及生成状态统一保存在 `.harness/`，根目录只有一份 `AGENTS.md` 正文；选择 Claude Code 时生成 `CLAUDE.md -> AGENTS.md` 相对软链。Agent 通过入口读取共享流程，这种布局不注册原生 Skills、斜杠命令或子代理，也不生成原生设置和 hook；CI 可以独立选择。
 
 仓库内的文档和工作流按用途使用简短名称，例如 `architecture.md`、`engineering`、`local-dev`、`verify`、`resume`，不重复添加仓库名前缀。只有共享工作区中确实需要区分不同组件的流程时，才添加组件限定词。
 
@@ -73,6 +73,10 @@ Codex Skills 安装到 `~/.agents/skills/`，Claude Code Skills 安装到 `~/.cl
 生成中文内容时，在初始化配置和 harness 生成规格中均保存 `language: "zh-CN"`，使受管入口说明在每次刷新后继续使用中文。编写的指南和描述遵循所选语言，命令与标识符保留原文。
 
 生成的入口会约束后续所有由 AI 新增的项目文档，包括计划、设计、分析、验证报告和交接记录，统一放入所选 harness 文档目录，通常为 `.harness/docs/`。生成规格的 `documentation_root` 须与初始化配置的 `documentation.root` 一致；目录内维护索引，对选择保留原位的文档使用链接。工具要求的文件按自身约定存放。这是 Agent 行为规则，不是文件系统权限限制。
+
+初始化先形成任务覆盖表，关联用户问题、组件与数据/接口边界、来源基线、文档和验证入口及缺口，再从最终入口回放代表问题。文件检查通过不等于业务知识可用；小项目可以放在一份简短指南中。详见[知识分析](skills/harness-init/references/knowledge.md)。
+
+本地 checkout 路径、工具实测状态、端口覆盖、个人 CLI 上下文和执行摘要统一由受忽略的 `*.local.md` 维护，默认入口为 `.harness/docs/workspace.local.md`；已有 `AGENTS.local.md` 可继续作为权威入口。五个 Skills 使用同一套有界解析、仓库身份与忽略检查。旧 JSON 仅兼容读取和迁移，迁移前保留可恢复副本，不再双写映射。新 checkout 或 CI 缺少本地文件时，共享检查仍可运行，本地任务明确待补齐。详见[本地上下文与迁移](skills/harness-init/references/local-context.md)。
 
 ## 工作区辅助工具
 
@@ -90,7 +94,7 @@ node "$helper" apply --plan "$PLAN"
 node "$helper" check --workspace "$WORKSPACE" --local
 ```
 
-计划文件可能包含本机绝对路径，请保存在本地。共享索引位于 `.harness/workspace.json`，被 Git 忽略的 `.harness/workspace.local.json` 保存仓库 ID 到本机检出的映射。需要团队共享时，可以选用已有 Git 仓保存共享索引。
+计划文件可能包含本机绝对路径，请保存在本地。共享索引位于 `.harness/workspace.json`，被 Git 忽略的 `.harness/docs/workspace.local.md` 保存仓库 ID 到本机检出的映射。需要团队共享时，可以选用已有 Git 仓保存共享索引。
 
 根据背景进行初始化时，将脱敏后的选择保存为 JSON 配置：
 

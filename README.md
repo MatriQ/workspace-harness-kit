@@ -66,7 +66,7 @@ New repository initialization prefers `layout: "centralized"`: one `.harness/`
 directory for guides, workflows, rules and generator state, a regular `AGENTS.md`,
 and `CLAUDE.md -> AGENTS.md` when Claude Code is selected. The entry point routes
 work to the shared procedures; this layout does not register native Skills, slash
-commands or agents. It rejects native settings, hooks and CI.
+commands or agents. It rejects native settings and hooks; CI can be selected independently.
 
 Repository-local documents and workflows use short purpose-based names such as
 `architecture.md`, `engineering`, `local-dev`, `verify` and `resume`, without a
@@ -91,6 +91,20 @@ For Chinese output, save `language: "zh-CN"` in both the onboarding profile and 
 
 The generated entry point requires all future AI-authored project documents—plans, designs, analyses, validation reports and handoffs—to live in the selected harness documentation root, normally `.harness/docs/`. Set `documentation_root` in the generation spec to match `documentation.root` in onboarding. Keep an index there and link to existing documents the user chose to retain elsewhere. Tool-required files keep their prescribed locations; this is an Agent instruction, not a filesystem permission boundary.
 
+Initialization derives a task coverage table: user questions, component/data/API
+answers, source baselines, document/test routes and visible gaps. It replays those
+questions from the final entry point; a clean file check does not establish usable
+business knowledge. Small projects can keep this in one guide. See
+[knowledge analysis](skills/harness-init/references/knowledge.md).
+
+Machine checkout paths, tool observations, port overrides, personal CLI contexts and
+execution summaries live in one ignored `*.local.md` entry, normally
+`.harness/docs/workspace.local.md`. Existing `AGENTS.local.md` can remain authoritative.
+All five Skills use the same bounded parser and identity/ignore checks. Legacy JSON
+is a compatibility/migration input with a recovery copy, not a second maintained
+map. Missing local files on new checkouts/CI leave local work pending while shared
+checks remain available. See [local context and migration](skills/harness-init/references/local-context.md).
+
 ## Workspace helper
 
 The workspace helper discovers Git checkouts, previews selections, persists the registry and local bindings, and checks the registry. The agent reviews sources and authors a generation specification; a separate generator renders and checks the selected native configuration. Both helpers run independently of the agent.
@@ -107,7 +121,7 @@ node "$helper" apply --plan "$PLAN"
 node "$helper" check --workspace "$WORKSPACE" --local
 ```
 
-Treat plans as local files. They can contain absolute checkout paths. The shared registry lives in `.harness/workspace.json`; the ignored `.harness/workspace.local.json` binds member IDs to machine-specific checkouts. Use an existing coordinator repository when the team wants to share the registry.
+Treat plans as local files. They can contain absolute checkout paths. The shared registry lives in `.harness/workspace.json`; the ignored `.harness/docs/workspace.local.md` binds member IDs to machine-specific checkouts. Use an existing coordinator repository when the team wants to share the registry.
 
 For background-driven initialization, save sanitized choices in a profile JSON:
 

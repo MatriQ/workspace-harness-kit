@@ -40,7 +40,7 @@ include those edits. Omit the option to preserve existing choices; an explicit
 profile replaces the whole `onboarding` object. Partial profiles are valid and retain
 unanswered questions. This option does not install tools, authenticate or write guides.
 
-The shared `.harness/workspace.json` stores member IDs, chosen modes, optional language overrides, document pointers and source fingerprints. The ignored `.harness/workspace.local.json` maps those IDs to this machine's checkouts. Write confirmed dependency relationships and useful references to the shared index. Personal paths belong in the local binding. Where the workspace root is itself a selected member, keep workspace metadata scoped under `.harness/`.
+The shared `.harness/workspace.json` stores member IDs, chosen modes, optional language overrides, document pointers and source fingerprints. The ignored `.harness/docs/workspace.local.md` maps those IDs to this machine's checkouts. Write confirmed dependency relationships and useful references to the shared index. Personal paths belong in the local binding. Where the workspace root is itself a selected member, keep workspace metadata scoped under `.harness/`.
 
 For each selected analyze/init member, the plan includes `document_consolidation`
 with existing documents outside the chosen harness documentation root, content
@@ -55,9 +55,19 @@ typed relationships, or capability membership. Members without explicit componen
 have one implicit component with their member ID. An adoption mode records requested
 scope, not evidence that initialization or execution finished.
 
+## Machine-local storage and migration
+
+The selected ignored `*.local.md` entry is the only maintained checkout/environment
+map. Use the [common local-context workflow](local-context.md) to read, update or
+migrate it. New workspaces default to `.harness/docs/workspace.local.md`; an existing
+`AGENTS.local.md` or chosen entry is preserved. `workspace.json.local_context` stores
+only its relative name. The old JSON map is a compatibility/migration input, never
+a second writer. Workspace plan previews the selected path and migration backup.
+Omit `--profile` when adding members to preserve existing choices and review baselines.
+
 ## Relocate local checkouts
 
-Resolve execution roots from `.harness/workspace.local.json` using
+Resolve execution roots from `.harness/docs/workspace.local.md` using
 `checkouts[memberId].path`. A copied local manifest is machine state, not a portable
 checkout map. After moving or copying a workspace, select the same member IDs and
 modes with their new local paths and preview a fresh plan. For example, with the
