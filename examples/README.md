@@ -44,6 +44,10 @@ revision. These are declared source identities, not production artifact attestat
 Add `--json` for a bounded target, observed component artifacts and acceptance result
 that a declared doctor probe can assert. This still runs the actual local scenario.
 
+The loopback API uses its bound IP address for server metadata, so startup does not
+require reverse DNS. The complete example check includes HTTP requests with reverse
+DNS disabled, covering runners whose resolver cannot answer for the loopback address.
+
 | Scenario | Command arguments | Exit status |
 | --- | --- | --- |
 | Expected revision and successful journey | Default | 0 |

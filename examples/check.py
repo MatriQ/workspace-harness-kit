@@ -20,6 +20,7 @@ def run(script, *args, expected=0):
 
 
 def main():
+    run(ROOT / "examples/test_loopback.py")
     with tempfile.TemporaryDirectory(prefix="workspace-harness-check-") as temporary:
         root = Path(temporary).resolve()
         demo = root / "workspace"

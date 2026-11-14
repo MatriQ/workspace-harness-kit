@@ -5,8 +5,16 @@ import argparse
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from socketserver import TCPServer
 from urllib.parse import parse_qs, urlsplit
 from claims import claim, observe
+
+
+class LocalHTTPServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer resolves a hostname here; this local fixture needs only its bound address.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 def make_server(host, port, revision, *, database=None, claims_enabled=True):
@@ -52,7 +60,7 @@ def make_server(host, port, revision, *, database=None, claims_enabled=True):
         def log_message(self, format, *args):
             pass
 
-    return ThreadingHTTPServer((host, port), Handler)
+    return LocalHTTPServer((host, port), Handler)
 
 
 def main():
